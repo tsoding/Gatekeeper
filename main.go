@@ -5,14 +5,29 @@ import (
 	"os/signal"
 	"syscall"
 	"log"
+	"fmt"
+	_ "html"
 	"strings"
 	"github.com/bwmarrin/discordgo"
 	"database/sql"
 	_ "github.com/lib/pq"
+	"net/http"
+	"encoding/json"
+	"regexp"
+	"context"
+	"time"
 )
 
 var CommandPrefix = "$"
 var TrustedRoleId = "543864981171470346"
+
+func LookupEnvOrDie(name string) string {
+	env, found := os.LookupEnv(name)
+	if !found {
+		log.Fatalln("Could not find ", name, " variable")
+	}
+	return env
+}
 
 func isMemberTrusted(member *discordgo.Member) bool {
 	for _, roleId := range member.Roles {
@@ -21,14 +36,6 @@ func isMemberTrusted(member *discordgo.Member) bool {
 		}
 	}
 	return false
-}
-
-func lookupEnvOrDie(name string) string {
-	env, found := os.LookupEnv(name)
-	if !found {
-		log.Fatalln("Could not find ", name, " variable")
-	}
-	return env
 }
 
 func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.MessageCreate) {
@@ -66,16 +73,115 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 		} else {
 			log.Printf("User %s is not trusted to trust others\n", m.Member.Nick);
 		}
+	} else if strings.HasPrefix(m.Content, CommandPrefix+"ping") {
+		dg.ChannelMessageSend(m.ChannelID, "Pong")
 	} else {
 		log.Printf("%s is not a trust command", m.Content)
 	}
 }
 
+type Route struct {
+	Regexp *regexp.Regexp
+	Handler func(wp *WebApp, w http.ResponseWriter, r *http.Request, matches []string)
+}
+
+func handlerStatic(wp *WebApp, w http.ResponseWriter, r *http.Request, matches []string) {
+	switch matches[1] {
+	// TODO: unhardcode static files
+	case "": fallthrough
+	case "index.html":
+		log.Println("serve index")
+		http.ServeFile(w, r, "index.html")
+	case "index.js":
+		http.ServeFile(w, r, "index.js")
+	default:
+		w.WriteHeader(404)
+		fmt.Fprintf(w, "Resource is not found\n")
+	}
+}
+
+func handlerAllUser(wp *WebApp, w http.ResponseWriter, r *http.Request, matches []string) {
+	rows, err := wp.DB.Query("SELECT id FROM TrustedUsers;")
+	if err != nil {
+		log.Println("Could not query children ids from database:", err)
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Server pooped its pants\n")
+		return
+	}
+
+	usersIds := []string{}
+	for rows.Next() {
+		var userId string
+		err = rows.Scan(&userId)
+		if err != nil {
+			log.Println("Could not collect user ids:", err)
+			return
+		}
+		usersIds = append(usersIds, userId)
+	}
+
+	err = json.NewEncoder(w).Encode(map[string]interface{}{
+		"usersIds": usersIds,
+	})
+	if err != nil {
+		log.Println("Could not encode respose:", err)
+	}
+}
+
+func handlerChildrenOfUser(wp *WebApp, w http.ResponseWriter, r *http.Request, matches []string) {
+	rows, err := wp.DB.Query("SELECT trusteeId FROM TrustLog WHERE trusterId = $1;", matches[1])
+	if err != nil {
+		log.Println("Could not query children ids from database:", err)
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Server pooped its pants\n")
+		return
+	}
+	defer rows.Close()
+
+	childrenIds := []string{}
+	for rows.Next() {
+		var childId string
+		err = rows.Scan(&childId)
+		if err != nil {
+			log.Println("Could not collect children ids:", err)
+			return
+		}
+		childrenIds = append(childrenIds, childId)
+	}
+
+	err = json.NewEncoder(w).Encode(map[string]interface{}{
+		"parentId": matches[1],
+		"childrenIds": childrenIds,
+	})
+	if err != nil {
+		log.Println("Could not encode respose:", err)
+	}
+}
+
+type WebApp struct {
+	Routes []Route
+	DB *sql.DB
+}
+
+func (wp *WebApp) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	for _, route := range(wp.Routes) {
+		matches := route.Regexp.FindStringSubmatch(r.URL.Path)
+		if len(matches) > 0 {
+			route.Handler(wp, w, r, matches)
+			return
+		}
+	}
+
+	w.WriteHeader(404)
+	fmt.Fprintf(w, "Resource is not found\n")
+}
+
 func main() {
-	discordToken := lookupEnvOrDie("TREE1984_DISCORD_TOKEN")
+	discordToken := LookupEnvOrDie("TREE1984_DISCORD_TOKEN")
 	// TODO: use PostgreSQL url here
 	// postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]
-	pgsqlConnection := lookupEnvOrDie("TREE1984_PGSQL_CONNECTION")
+	pgsqlConnection := LookupEnvOrDie("TREE1984_PGSQL_CONNECTION")
+
 
 	dg, err := discordgo.New("Bot " + discordToken)
 	if err != nil {
@@ -84,8 +190,8 @@ func main() {
 
 	// TODO: REST API for controling/monitoring the bot
 	// TODO: web client for the REST API
-
 	// TODO: migrate database
+
 	db, err := sql.Open("postgres", pgsqlConnection)
 	if err != nil {
 		log.Fatalln("Could not open PostgreSQL connection:", err)
@@ -106,13 +212,49 @@ func main() {
 		log.Fatalln("Could not open Discord connection:", err)
 	}
 
+	server := http.Server{
+		// TODO: customizable port (probably via envar)
+		Addr: "localhost:6969",
+		Handler: &WebApp{
+			Routes: []Route{
+				Route{
+					Regexp: regexp.MustCompile("^/user/([0-9]+)/children$"),
+					Handler: handlerChildrenOfUser,
+				},
+				Route{
+					Regexp: regexp.MustCompile("^/user$"),
+					Handler: handlerAllUser,
+				},
+				Route{
+					Regexp: regexp.MustCompile("^/(.*)$"),
+					Handler: handlerStatic,
+				},
+			},
+			DB: db,
+		},
+	}
+
+	go func() {
+		err := server.ListenAndServe()
+		log.Println("HTTP server stopped:", err)
+	}()
+
 	// Wait here until CTRL-C or other term signal is received.
 	log.Println("Bot is now running.  Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
 
-	// Cleanly close down the Discord session and the Postgres connection.
-	db.Close()
-	dg.Close()
+	// Cleanly close down the Discord session, the Postgres connection and the HTTP server.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		log.Println("Could not shutdown HTTP server:", err)
+	}
+	if err := db.Close(); err != nil {
+		log.Println("Could not close PostgreSQL connection:", err)
+	}
+	if err := dg.Close(); err != nil {
+		log.Println("Could not close Discord connection:", err)
+	}
 }

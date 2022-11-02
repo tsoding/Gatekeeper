@@ -1,4 +1,4 @@
-module tsoding/tree1984
+module github.com/tsoding/tree1984
 
 go 1.17
 
