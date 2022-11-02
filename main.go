@@ -98,7 +98,7 @@ func main() {
 
 	err = dg.Open()
 	if err != nil {
-		log.Fatalln("Could open Discord connection:", err)
+		log.Fatalln("Could not open Discord connection:", err)
 	}
 
 	// Wait here until CTRL-C or other term signal is received.
