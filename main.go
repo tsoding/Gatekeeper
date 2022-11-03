@@ -6,7 +6,6 @@ import (
 	"syscall"
 	"log"
 	"fmt"
-	_ "html"
 	"strings"
 	"github.com/bwmarrin/discordgo"
 	"database/sql"
