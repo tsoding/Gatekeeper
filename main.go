@@ -13,6 +13,7 @@ import (
 	"context"
 	"time"
 	"regexp"
+	"github.com/tsoding/smig"
 )
 
 var CommandPrefix = "$"
@@ -163,6 +164,36 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 	}
 }
 
+func migratePostgres(db *sql.DB) bool {
+	log.Println("Checking if there are any migrations to apply")
+	tx, err := db.Begin()
+	if err != nil {
+		log.Println("Error starting the migration transaction:", err)
+		return false
+	}
+
+	err = smig.MigratePG(tx, "./sql/")
+	if err != nil {
+		log.Println("Error during the migration:", err)
+
+		err = tx.Rollback()
+		if err != nil {
+			log.Println("Error rolling back the migration transaction:", err)
+		}
+
+		return false
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		log.Println("Error during committing the transaction:", err)
+		return false
+	}
+
+	log.Println("All the migrations are applied")
+	return true
+}
+
 func main() {
 	discordToken := LookupEnvOrDie("GATEKEEPER_DISCORD_TOKEN")
 	// TODO: use PostgreSQL url here
@@ -182,11 +213,11 @@ func main() {
 	if err != nil {
 		log.Fatalln("Could not open PostgreSQL connection:", err)
 	}
-	err = db.Ping()
-	if err != nil {
-		log.Fatalln("PostgreSQL connection didn't respond to ping:", err)
+
+	ok := migratePostgres(db)
+	if !ok {
+		log.Fatalln("Could not migrate PostgreSQL")
 	}
-	log.Println("Connected to PostgreSQL")
 
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate){
 		handleDiscordMessage(db, s, m)
