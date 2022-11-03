@@ -45,7 +45,7 @@ func AtUser(user *discordgo.User) string {
 
 var (
 	AdminID = "180406039500292096"
-	MaxTrustedTimes = 2
+	MaxTrustedTimes = 1
 )
 
 func TrustedTimesOfUser(db *sql.DB, user *discordgo.User) (int, error) {
@@ -77,6 +77,20 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 	}
 
 	switch command.Name {
+    case "count":
+		if !isMemberTrusted(m.Member) {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Only trusted users can trust others")
+			return
+		}
+		count, err := TrustedTimesOfUser(db, m.Author);
+		if err != nil {
+			log.Println("Could not get amount of trusted times:", err)
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong. Please ask "+AtID(AdminID)+" to check the logs")
+			return
+		}
+        dg.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%s Used %d out of %d trusts", AtUser(m.Author), count, MaxTrustedTimes))
+    case "untrust":
+        dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" what is done is done ( -_-)")
 	case "trust":
 		if !isMemberTrusted(m.Member) {
 			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Only trusted users can trust others")
@@ -145,7 +159,7 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 
 		dg.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%s Trusted %s. Used %d out of %d trusts.", AtUser(m.Author), AtUser(mention), count+1, MaxTrustedTimes))
 	case "ping":
-		dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Pong")
+		dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" pong")
 	}
 }
 
