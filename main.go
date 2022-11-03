@@ -38,45 +38,111 @@ func isMemberTrusted(member *discordgo.Member) bool {
 	return false
 }
 
+func AtID(id string) string {
+	return "<@"+id+">"
+}
+
+func AtUser(user *discordgo.User) string {
+	return AtID(user.ID)
+}
+
+var (
+	AdminID = "180406039500292096"
+	MaxTrustedTimes = 2
+)
+
+func TrustedTimesOfUser(db *sql.DB, user *discordgo.User) (int, error) {
+	rows, err := db.Query("SELECT count(*) FROM TrustLog WHERE trusterId = $1", user.ID)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		var count int
+		if err := rows.Scan(&count); err != nil {
+			return 0, err
+		}
+		return count, nil
+	}
+
+	return 0, fmt.Errorf("TrustedTimesOfUser: expected at least one row with result")
+}
+
 func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Author.Bot {
 		return
 	}
 
 	if strings.HasPrefix(m.Content, CommandPrefix+"trust ") {
-		if isMemberTrusted(m.Member) {
-			for _, mention := range m.Mentions {
-				mentionMember, err := dg.GuildMember(m.GuildID, mention.ID)
-				if err != nil {
-					log.Printf("Could not get roles of user %s: %s\n", mention.ID, err)
-					continue
-				}
-
-				if !isMemberTrusted(mentionMember) {
-					// TODO: do all of that in a transation that is rollbacked when GuildMemberRoleAdd fails
-					// TODO: limit the amount of trusts a user can do
-					_, err = db.Exec("INSERT INTO TrustLog (trusterId, trusteeId) VALUES ($1, $2);", m.Author.ID, mention.ID)
-					if err != nil {
-						log.Printf("Could not save a TrustLog entry\n");
-						continue
-					}
-
-					err := dg.GuildMemberRoleAdd(m.GuildID, mention.ID, TrustedRoleId)
-					if err != nil {
-						log.Printf("Could not assign role %s to user %s: %s\n", TrustedRoleId, mention.ID, err)
-						continue
-					}
-
-					dg.ChannelMessageSend(m.ChannelID, "Trusted "+mention.Username)
-				}
-			}
-		} else {
-			log.Printf("User %s is not trusted to trust others\n", m.Member.Nick);
+		if !isMemberTrusted(m.Member) {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Only trusted users can trust others")
+			return
 		}
+
+		if len(m.Mentions) == 0 {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Please ping the user you want to trust")
+			return
+		}
+
+		if len(m.Mentions) > 1 {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" You can't trust several people simultaneously")
+			return
+		}
+
+		mention := m.Mentions[0]
+
+		count, err := TrustedTimesOfUser(db, m.Author);
+		if err != nil {
+			log.Println("Could not get amount of trusted times:", err)
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong. Please ask "+AtID(AdminID)+" to check the logs")
+			return
+		}
+		if count >= MaxTrustedTimes {
+			if m.Author.ID != AdminID {
+				dg.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%s You ran out of trusts. Used %d out of %d", AtUser(m.Author), count, MaxTrustedTimes))
+				return
+			} else {
+				dg.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%s You ran out of trusts. Used %d out of %d. But since you are the %s I'll make an exception for you.", AtUser(m.Author), count, MaxTrustedTimes, AtID(AdminID)))
+			}
+		}
+
+		if mention.ID == m.Author.ID {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" On this server you can't trust yourself!")
+			return
+		}
+
+		mentionMember, err := dg.GuildMember(m.GuildID, mention.ID)
+		if err != nil {
+			log.Printf("Could not get roles of user %s: %s\n", mention.ID, err)
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong. Please ask "+AtID(AdminID)+" to check the logs")
+			return
+		}
+
+		if isMemberTrusted(mentionMember) {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" That member is already trusted")
+			return
+		}
+
+		// TODO: do all of that in a transation that is rollbacked when GuildMemberRoleAdd fails
+		// TODO: add record to trusted users table
+		_, err = db.Exec("INSERT INTO TrustLog (trusterId, trusteeId) VALUES ($1, $2);", m.Author.ID, mention.ID)
+		if err != nil {
+			log.Printf("Could not save a TrustLog entry: %s\n", err);
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong. Please ask "+AtID(AdminID)+" to check the logs")
+			return
+		}
+
+		err = dg.GuildMemberRoleAdd(m.GuildID, mention.ID, TrustedRoleId)
+		if err != nil {
+			log.Printf("Could not assign role %s to user %s: %s\n", TrustedRoleId, mention.ID, err)
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong. Please ask "+AtID(AdminID)+" to check the logs")
+			return
+		}
+
+		dg.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%s Trusted %s. Used %d out of %d trusts.", AtUser(m.Author), AtUser(mention), count+1, MaxTrustedTimes))
 	} else if strings.HasPrefix(m.Content, CommandPrefix+"ping") {
-		dg.ChannelMessageSend(m.ChannelID, "Pong")
-	} else {
-		log.Printf("%s is not a trust command", m.Content)
+		dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Pong")
 	}
 }
 
@@ -187,8 +253,8 @@ func main() {
 	if err != nil {
 		log.Fatalln("Could not start a new Discord session:", err)
 	}
+	log.Println("Connected to Discord")
 
-	// TODO: REST API for controling/monitoring the bot
 	// TODO: web client for the REST API
 	// TODO: migrate database
 
@@ -200,6 +266,7 @@ func main() {
 	if err != nil {
 		log.Fatalln("PostgreSQL connection didn't respond to ping:", err)
 	}
+	log.Println("Connected to PostgreSQL")
 
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate){
 		handleDiscordMessage(db, s, m)
@@ -212,7 +279,7 @@ func main() {
 		log.Fatalln("Could not open Discord connection:", err)
 	}
 
-	server := http.Server{
+	server := &http.Server{
 		// TODO: customizable port (probably via envar)
 		Addr: "localhost:6969",
 		Handler: &WebApp{
@@ -233,11 +300,18 @@ func main() {
 			DB: db,
 		},
 	}
+	server = nil
 
 	go func() {
-		err := server.ListenAndServe()
-		log.Println("HTTP server stopped:", err)
+		if server != nil {
+			log.Println("Starting Web server")
+			err := server.ListenAndServe()
+			log.Println("HTTP server stopped:", err)
+		} else {
+			log.Println("HTTP server is temporarily disabled")
+		}
 	}()
+
 
 	// Wait here until CTRL-C or other term signal is received.
 	log.Println("Bot is now running.  Press CTRL-C to exit.")
@@ -246,10 +320,12 @@ func main() {
 	<-sc
 
 	// Cleanly close down the Discord session, the Postgres connection and the HTTP server.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := server.Shutdown(ctx); err != nil {
-		log.Println("Could not shutdown HTTP server:", err)
+	if server != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			log.Println("Could not shutdown HTTP server:", err)
+		}
 	}
 	if err := db.Close(); err != nil {
 		log.Println("Could not close PostgreSQL connection:", err)
