@@ -1,4 +1,4 @@
-module github.com/tsoding/tree1984
+module github.com/tsoding/gatekeeper
 
 go 1.17
 

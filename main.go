@@ -164,11 +164,10 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 }
 
 func main() {
-	discordToken := LookupEnvOrDie("TREE1984_DISCORD_TOKEN")
+	discordToken := LookupEnvOrDie("GATEKEEPER_DISCORD_TOKEN")
 	// TODO: use PostgreSQL url here
 	// postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]
-	pgsqlConnection := LookupEnvOrDie("TREE1984_PGSQL_CONNECTION")
-
+	pgsqlConnection := LookupEnvOrDie("GATEKEEPER_PGSQL_CONNECTION")
 
 	dg, err := discordgo.New("Bot " + discordToken)
 	if err != nil {
