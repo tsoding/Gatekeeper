@@ -4,7 +4,10 @@ import (
 	"regexp"
 )
 
-var CommandRegexp = regexp.MustCompile("^ *\\$ *([a-zA-Z0-9\\-_]+)( +(.*))?$")
+var (
+	CommandPrefix = "$"
+	CommandRegexp = regexp.MustCompile("^ *\\"+CommandPrefix+" *([a-zA-Z0-9\\-_]+)( +(.*))?$")
+)
 
 type Command struct {
 	Name string

@@ -7,5 +7,6 @@ The chat bot Zozin does not want you to know about.
 ```console
 $ export GATEKEEPER_DISCORD_TOKEN="..."
 $ export GATEKEEPER_PGSQL_CONNECTION="..."
-$ go run .
+$ go build
+$ ./gatekeeper
 ```

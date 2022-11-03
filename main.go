@@ -14,10 +14,8 @@ import (
 	"time"
 	"regexp"
 	"github.com/tsoding/smig"
+	"runtime/debug"
 )
-
-var CommandPrefix = "$"
-var TrustedRoleId = "543864981171470346"
 
 func LookupEnvOrDie(name string) string {
 	env, found := os.LookupEnv(name)
@@ -43,11 +41,6 @@ func AtID(id string) string {
 func AtUser(user *discordgo.User) string {
 	return AtID(user.ID)
 }
-
-var (
-	AdminID = "180406039500292096"
-	MaxTrustedTimes = 1
-)
 
 func TrustedTimesOfUser(db *sql.DB, user *discordgo.User) (int, error) {
 	rows, err := db.Query("SELECT count(*) FROM TrustLog WHERE trusterId = $1", user.ID)
@@ -78,7 +71,15 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 	}
 
 	switch command.Name {
+	case "version":
+		// TODO: Check for results of dg.ChannelMessageSend
+		dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" "+Commit)
 	case "count":
+		if db == nil {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong with the database. Commands that require it won't work. Please ask "+AtID(AdminID)+" to check the logs")
+			return
+		}
+
 		if !isMemberTrusted(m.Member) {
 			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Only trusted users can trust others")
 			return
@@ -93,6 +94,11 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 	case "untrust":
 		dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" what is done is done ( -_-)")
 	case "trust":
+		if db == nil {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong with the database. Commands that require it won't work. Please ask "+AtID(AdminID)+" to check the logs")
+			return
+		}
+
 		if !isMemberTrusted(m.Member) {
 			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Only trusted users can trust others")
 			return
@@ -194,11 +200,59 @@ func migratePostgres(db *sql.DB) bool {
 	return true
 }
 
+func startPostgreSQL() *sql.DB {
+	pgsqlConnection, found := os.LookupEnv("GATEKEEPER_PGSQL_CONNECTION")
+	if !found {
+		log.Println("Could not find GATEKEEPER_PGSQL_CONNECTION variable")
+		return nil
+	}
+
+	db, err := sql.Open("postgres", pgsqlConnection)
+	if err != nil {
+		log.Println("Could not open PostgreSQL connection:", err)
+		return nil
+	}
+
+	ok := migratePostgres(db)
+	if !ok {
+		err := db.Close()
+		if err != nil {
+			log.Println("Error while closing PostgreSQL connection due to failed migration:", err)
+		}
+		return nil
+	}
+
+	return db
+}
+
+var (
+	// TODO: unhardcode these parameters (config, database, or something else)
+	AdminID = "180406039500292096"
+	MaxTrustedTimes = 1
+	TrustedRoleId = "543864981171470346"
+
+	Commit = func() string {
+		if info, ok := debug.ReadBuildInfo(); ok {
+			for _, setting := range info.Settings {
+				if setting.Key == "vcs.revision" {
+					return setting.Value
+				}
+			}
+		}
+		return "<none>"
+	}()
+)
+
 func main() {
+	// PostgreSQL //////////////////////////////
+	db := startPostgreSQL()
+
+	if db == nil {
+		log.Println("Starting without PostgreSQL. Commands that require it won't work.")
+	}
+
+	// Discord //////////////////////////////
 	discordToken := LookupEnvOrDie("GATEKEEPER_DISCORD_TOKEN")
-	// TODO: use PostgreSQL url here
-	// postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]
-	pgsqlConnection := LookupEnvOrDie("GATEKEEPER_PGSQL_CONNECTION")
 
 	dg, err := discordgo.New("Bot " + discordToken)
 	if err != nil {
@@ -206,30 +260,19 @@ func main() {
 	}
 	log.Println("Connected to Discord")
 
-	// TODO: web client for the REST API
-	// TODO: migrate database
-
-	db, err := sql.Open("postgres", pgsqlConnection)
-	if err != nil {
-		log.Fatalln("Could not open PostgreSQL connection:", err)
-	}
-
-	ok := migratePostgres(db)
-	if !ok {
-		log.Fatalln("Could not migrate PostgreSQL")
-	}
+	dg.Identify.Intents = discordgo.IntentsGuildMessages
 
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate){
 		handleDiscordMessage(db, s, m)
 	})
-
-	dg.Identify.Intents = discordgo.IntentsGuildMessages
 
 	err = dg.Open()
 	if err != nil {
 		log.Fatalln("Could not open Discord connection:", err)
 	}
 
+	// HTTP Server //////////////////////////////
+	// TODO: web client for the REST API
 	server := &http.Server{
 		// TODO: customizable port (probably via envar)
 		Addr: "localhost:6969",
@@ -277,10 +320,12 @@ func main() {
 			log.Println("Could not shutdown HTTP server:", err)
 		}
 	}
-	if err := db.Close(); err != nil {
-		log.Println("Could not close PostgreSQL connection:", err)
-	}
 	if err := dg.Close(); err != nil {
 		log.Println("Could not close Discord connection:", err)
+	}
+	if db != nil {
+		if err := db.Close(); err != nil {
+			log.Println("Could not close PostgreSQL connection:", err)
+		}
 	}
 }
