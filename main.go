@@ -6,7 +6,6 @@ import (
 	"syscall"
 	"log"
 	"fmt"
-	"strings"
 	"github.com/bwmarrin/discordgo"
 	"database/sql"
 	_ "github.com/lib/pq"
@@ -73,7 +72,13 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 		return
 	}
 
-	if strings.HasPrefix(m.Content, CommandPrefix+"trust ") {
+	command, ok := parseCommand(m.Content)
+	if !ok {
+		return
+	}
+
+	switch command.Name {
+	case "trust":
 		if !isMemberTrusted(m.Member) {
 			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Only trusted users can trust others")
 			return
@@ -140,7 +145,7 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 		}
 
 		dg.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%s Trusted %s. Used %d out of %d trusts.", AtUser(m.Author), AtUser(mention), count+1, MaxTrustedTimes))
-	} else if strings.HasPrefix(m.Content, CommandPrefix+"ping") {
+	case "ping":
 		dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Pong")
 	}
 }

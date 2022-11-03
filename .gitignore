@@ -1,5 +1,6 @@
 data
 tree1984
+log.txt
 *.dot
 *.png
 *.svg
