@@ -77,7 +77,7 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 	}
 
 	switch command.Name {
-    case "count":
+	case "count":
 		if !isMemberTrusted(m.Member) {
 			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Only trusted users can trust others")
 			return
@@ -88,9 +88,9 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong. Please ask "+AtID(AdminID)+" to check the logs")
 			return
 		}
-        dg.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%s Used %d out of %d trusts", AtUser(m.Author), count, MaxTrustedTimes))
-    case "untrust":
-        dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" what is done is done ( -_-)")
+		dg.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%s Used %d out of %d trusts", AtUser(m.Author), count, MaxTrustedTimes))
+	case "untrust":
+		dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" what is done is done ( -_-)")
 	case "trust":
 		if !isMemberTrusted(m.Member) {
 			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Only trusted users can trust others")
