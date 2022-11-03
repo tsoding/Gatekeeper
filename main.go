@@ -15,6 +15,9 @@ import (
 	"regexp"
 	"github.com/tsoding/smig"
 	"runtime/debug"
+	"net/url"
+	"io/ioutil"
+	"errors"
 )
 
 func LookupEnvOrDie(name string) string {
@@ -58,6 +61,34 @@ func TrustedTimesOfUser(db *sql.DB, user *discordgo.User) (int, error) {
 	}
 
 	return 0, fmt.Errorf("TrustedTimesOfUser: expected at least one row with result")
+}
+
+var (
+	PlaceNotFound = errors.New("PlaceNotFound")
+	SomebodyTryingToHackWeather = errors.New("SomebodyTryingToHackWeather")
+)
+
+func checkWeatherOf(place string) (string, error) {
+	res, err := http.Get("https://wttr.in/"+url.PathEscape(place)+"?format=4")
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body);
+	if err != nil {
+		return "", err
+	}
+
+	if res.StatusCode == 404 {
+		return "", PlaceNotFound
+	} else if res.StatusCode == 400 {
+		return "", SomebodyTryingToHackWeather
+	} else if res.StatusCode > 400 {
+		return "", fmt.Errorf("Unsuccesful response from wttr.in with code %d: %s", res.StatusCode, string(body))
+	}
+
+	return string(body), nil
 }
 
 func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.MessageCreate) {
@@ -165,6 +196,26 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 		}
 
 		dg.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%s Trusted %s. Used %d out of %d trusts.", AtUser(m.Author), AtUser(mention), count+1, MaxTrustedTimes))
+	case "weather":
+		place := command.Args
+
+		var response string
+		var err error
+		if len(place) > 0 {
+			response, err = checkWeatherOf(place)
+			if err == PlaceNotFound {
+				response = "Could not find `"+place+"`"
+			} else if err == SomebodyTryingToHackWeather {
+				response = "Are you trying to hack me or something? ._."
+			} else if err != nil {
+				response = "Something went wrong while querying the weather for `"+place+"`. "+AtID(AdminID)+" please check the logs."
+				log.Println("Error while checking the weather for `"+place+"`:", err)
+			}
+		} else {
+			response = "No place is provided for "+CommandPrefix+"weather"
+		}
+
+		dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" "+response)
 	case "ping":
 		dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" pong")
 	}
