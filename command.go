@@ -5,8 +5,8 @@ import (
 )
 
 var (
-	CommandPrefix = "$"
-	CommandRegexp = regexp.MustCompile("^ *\\"+CommandPrefix+" *([a-zA-Z0-9\\-_]+)( +(.*))?$")
+	CommandPrefix = "\\$"
+	CommandRegexp = regexp.MustCompile("^ *"+CommandPrefix+" *([a-zA-Z0-9\\-_]+)( +(.*))?$")
 )
 
 type Command struct {

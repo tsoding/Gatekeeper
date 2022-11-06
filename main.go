@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"io/ioutil"
 	"errors"
+	"math/rand"
 )
 
 func LookupEnvOrDie(name string) string {
@@ -218,6 +219,27 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 		dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" "+response)
 	case "ping":
 		dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" pong")
+	case "minesweeper": fallthrough
+	case "mine":
+		// TODO: make the field size customizable via the command parameters
+		var seed string
+		if len(command.Args) > 0 {
+			seed = command.Args
+		} else {
+			seed = randomMinesweeperSeed()
+		}
+
+		r := rand.New(seedAsSource(seed))
+		dg.ChannelMessageSend(m.ChannelID, renderMinesweeperFieldForDiscord(randomMinesweeperField(r), seed));
+	case "mineopen":
+		if len(command.Args) == 0 {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" please provide the seed")
+			return
+		}
+
+		seed := command.Args
+		r := rand.New(seedAsSource(seed))
+		dg.ChannelMessageSend(m.ChannelID, renderOpenMinesweeperFieldForDiscord(randomMinesweeperField(r), seed))
 	}
 }
 
