@@ -21,14 +21,6 @@ import (
 	"math/rand"
 )
 
-func LookupEnvOrDie(name string) string {
-	env, found := os.LookupEnv(name)
-	if !found {
-		log.Fatalln("Could not find ", name, " variable")
-	}
-	return env
-}
-
 func isMemberTrusted(member *discordgo.Member) bool {
 	for _, roleId := range member.Roles {
 		if roleId == TrustedRoleId {
@@ -316,23 +308,16 @@ var (
 	}()
 )
 
-func main() {
-	rand.Seed(time.Now().UnixNano())
-	// PostgreSQL //////////////////////////////
-	db := startPostgreSQL()
-
-	if db == nil {
-		log.Println("Starting without PostgreSQL. Commands that require it won't work.")
+func startDiscord(db *sql.DB) (*discordgo.Session, error) {
+	discordToken, found := os.LookupEnv("GATEKEEPER_DISCORD_TOKEN")
+	if !found {
+		return nil, fmt.Errorf("Could not find GATEKEEPER_DISCORD_TOKEN variable")
 	}
-
-	// Discord //////////////////////////////
-	discordToken := LookupEnvOrDie("GATEKEEPER_DISCORD_TOKEN")
 
 	dg, err := discordgo.New("Bot " + discordToken)
 	if err != nil {
-		log.Fatalln("Could not start a new Discord session:", err)
+		return nil, err
 	}
-	log.Println("Connected to Discord")
 
 	dg.Identify.Intents = discordgo.IntentsGuildMessages
 
@@ -342,7 +327,37 @@ func main() {
 
 	err = dg.Open()
 	if err != nil {
-		log.Fatalln("Could not open Discord connection:", err)
+		return nil, err
+	}
+
+	return dg, nil
+}
+
+func main() {
+	rand.Seed(time.Now().UnixNano())
+
+	// PostgreSQL //////////////////////////////
+	db := startPostgreSQL()
+	if db == nil {
+		log.Println("Starting without PostgreSQL. Commands that require it won't work.")
+	} else {
+		defer db.Close()
+	}
+
+	// Discord //////////////////////////////
+	dg, err := startDiscord(db)
+	if err != nil {
+		log.Println("Could not open Discord connection:", err);
+	} else {
+		defer dg.Close();
+	}
+
+	// Twitch //////////////////////////////
+	tw, ok := startTwitch();
+	if !ok {
+		log.Println("Could not open Twitch connection");
+	} else {
+		defer tw.Close()
 	}
 
 	// HTTP Server //////////////////////////////
@@ -392,14 +407,6 @@ func main() {
 		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
 			log.Println("Could not shutdown HTTP server:", err)
-		}
-	}
-	if err := dg.Close(); err != nil {
-		log.Println("Could not close Discord connection:", err)
-	}
-	if db != nil {
-		if err := db.Close(); err != nil {
-			log.Println("Could not close PostgreSQL connection:", err)
 		}
 	}
 }
