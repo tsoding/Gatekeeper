@@ -89,7 +89,6 @@ func twitchIncomingLoop(twitchConn *TwitchConn) {
 				log.Printf("Failed to parse command: |%s| %d\n", line, len(line))
 				continue
 			}
-			log.Printf("Twitch<: %#v\n", msg);
 			twitchConn.Incoming <- msg
 		}
 	}

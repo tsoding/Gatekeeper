@@ -3,7 +3,6 @@ package main
 import (
 	"strings"
 	"io"
-	"log"
 	"fmt"
 	"regexp"
 )
@@ -183,8 +182,6 @@ Loop:
 }
 
 func (msg IrcMsg) Send(writer io.Writer) error {
-	// TODO: logging leaks the password
-	log.Printf("Twitch>: %#v\n", msg);
 	msgString, ok := msg.String()
 	if !ok {
 		return fmt.Errorf("Could not serialize IRC message %#v", msg)
