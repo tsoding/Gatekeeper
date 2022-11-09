@@ -150,6 +150,8 @@ func startTwitch() (*TwitchConn, bool) {
 					log.Println(err)
 				}
 				twitchConn.State = TwitchJoin
+				// TODO: check for authentication failures
+				// Reconnection is pointless. Abandon Twitch service at all.
 				go twitchIncomingLoop(&twitchConn)
 			case TwitchJoin:
 				select {
