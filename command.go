@@ -35,6 +35,64 @@ type CommandEnvironment interface {
 	SendMessage(message string)
 }
 
+type CyrillifyEnvironment struct {
+	InnerEnv CommandEnvironment
+}
+
+func (env *CyrillifyEnvironment) AtAdmin() string {
+	return env.InnerEnv.AtAdmin()
+}
+
+func (env *CyrillifyEnvironment) AtAuthor() string {
+	return env.InnerEnv.AtAuthor()
+}
+
+func (env *CyrillifyEnvironment) IsAuthorAdmin() bool {
+	return env.InnerEnv.IsAuthorAdmin()
+}
+
+func (env CyrillifyEnvironment) SendMessage(message string) {
+	env.InnerEnv.SendMessage(Cyrillify(message))
+}
+
+func Cyrillify(message string) string {
+	result := []rune{}
+	for _, x := range []rune(message) {
+		if y, ok := CyrilMap[x]; ok {
+			result = append(result, y)
+		} else {
+			result = append(result, x)
+		}
+	}
+	return string(result)
+}
+
+var CyrilMap = map[rune]rune {
+	'a': 'д',
+	'e': 'ё',
+	'b': 'б',
+	'h': 'н',
+	'k': 'к',
+	'm': 'м',
+	'n': 'и',
+	'o': 'ф',
+	'r': 'г',
+	't': 'т',
+	'u': 'ц',
+	'x': 'ж',
+	'w': 'ш',
+	'A': 'Д',
+	'G': 'Б',
+	'E': 'Ё',
+	'N': 'И',
+	'O': 'Ф',
+	'R': 'Я',
+	'U': 'Ц',
+	'W': 'Ш',
+	'X': 'Ж',
+	'Y': 'У',
+}
+
 func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 	switch command.Name {
 	case "ping":
@@ -67,6 +125,15 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 		EvalCommand(db, innerCommand, env);
 		elapsed := time.Since(start)
 		env.SendMessage(env.AtAuthor()+" `"+command.Args+"` took "+elapsed.String()+" to executed")
+	case "cyril":
+		innerCommand, ok := parseCommand(command.Args)
+		if !ok {
+			env.SendMessage(Cyrillify(command.Args))
+		} else {
+			EvalCommand(db, innerCommand, &CyrillifyEnvironment{
+				InnerEnv: env,
+			})
+		}
 	case "weather":
 		place := command.Args
 
