@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	CommandPrefix = "\\$"
+	CommandPrefix = "\\^"
 	CommandRegexp = regexp.MustCompile("^ *"+CommandPrefix+" *([a-zA-Z0-9\\-_]+)( +(.*))?$")
 )
 

@@ -84,6 +84,8 @@ func checkWeatherOf(place string) (string, error) {
 	return string(body), nil
 }
 
+var CarrotsonWeighted = true
+
 func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Author.Bot {
 		return
@@ -233,14 +235,37 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 		seed := command.Args
 		r := rand.New(seedAsSource(seed))
 		dg.ChannelMessageSend(m.ChannelID, renderOpenMinesweeperFieldForDiscord(randomMinesweeperField(r), seed))
-	case "🥕": fallthrough
+	case "unweighted":
+		if m.Author.ID != AdminID {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" only for "+AtID(AdminID)+" sorry")
+			return
+		}
+
+		CarrotsonWeighted = false
+
+		dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" switched to unweighted branching")
+	case "weighted":
+		if m.Author.ID != AdminID {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" only for "+AtID(AdminID)+" sorry")
+			return
+		}
+
+		CarrotsonWeighted = true
+
+		dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" switched to weighted branching")
+	case "isweighted":
+		if CarrotsonWeighted {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" yes")
+		} else {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" no")
+		}
 	case "carrot":
 		if db == nil {
 			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong with the database. Commands that require it won't work. Please ask "+AtID(AdminID)+" to check the logs")
 			return
 		}
 
-		message, err := carrotsonGenerate(db, command.Args, 1024)
+		message, err := carrotsonGenerate(db, command.Args, 1024, CarrotsonWeighted)
 		if err != nil {
 			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong. Please ask "+AtID(AdminID)+" to check the logs")
 			return

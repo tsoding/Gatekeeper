@@ -55,22 +55,32 @@ func queryBranchesFromContext(db *sql.DB, context []rune) ([]Branch, error) {
 	return branches, nil
 }
 
-func branchRandomly(branches []Branch) rune {
-	var sum int64 = 0
-	for _, branch := range branches {
-		sum += branch.frequency
-	}
+type BranchStrategy int
 
-	index := rand.Int63n(sum)
-	var psum int64 = 0
-	for _, branch := range branches {
-		psum += branch.frequency
-		if index <= psum {
-			return branch.follows
+func branchRandomly(branches []Branch, weighted bool) rune {
+	if weighted {
+		var sum int64 = 0
+		for _, branch := range branches {
+			sum += branch.frequency
 		}
-	}
 
-	panic("unreachable")
+		index := rand.Int63n(sum)
+		var psum int64 = 0
+		for _, branch := range branches {
+			psum += branch.frequency
+			if index <= psum {
+				return branch.follows
+			}
+		}
+
+		panic("unreachable")
+	} else {
+		if len(branches) == 0 {
+			panic("unreachable")
+		}
+
+		return branches[rand.Intn(len(branches))].follows
+	}
 }
 
 func contextOfMessage(message []rune) []rune {
@@ -81,12 +91,12 @@ func contextOfMessage(message []rune) []rune {
 	return message[i:len(message)]
 }
 
-func carrotsonGenerate(db *sql.DB, prefix string, limit int) (string, error) {
+func carrotsonGenerate(db *sql.DB, prefix string, limit int, weighted bool) (string, error) {
 	var err error = nil
 	message := []rune(prefix)
 	branches, err := queryBranchesFromContext(db, contextOfMessage(message))
 	for err == nil && len(branches) > 0 && len(message) < limit {
-		follows := branchRandomly(branches)
+		follows := branchRandomly(branches, weighted)
 		message = append(message, follows)
 		branches, err = queryBranchesFromContext(db, contextOfMessage(message))
 	}
