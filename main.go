@@ -91,6 +91,7 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 
 	command, ok := parseCommand(m.Content)
 	if !ok {
+		feedMessageToCarrotson(db, m.Content)
 		return
 	}
 
@@ -232,6 +233,18 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 		seed := command.Args
 		r := rand.New(seedAsSource(seed))
 		dg.ChannelMessageSend(m.ChannelID, renderOpenMinesweeperFieldForDiscord(randomMinesweeperField(r), seed))
+	case "carrot":
+		if db == nil {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong with the database. Commands that require it won't work. Please ask "+AtID(AdminID)+" to check the logs")
+			return
+		}
+
+		message, err := carrotsonGenerate(db, command.Args, 2000)
+		if err != nil {
+			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong. Please ask "+AtID(AdminID)+" to check the logs")
+			return
+		}
+		dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" "+message)
 	}
 }
 
