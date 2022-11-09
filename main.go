@@ -93,7 +93,9 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 
 	command, ok := parseCommand(m.Content)
 	if !ok {
-		feedMessageToCarrotson(db, m.Content)
+		if db != nil {
+			feedMessageToCarrotson(db, m.Content)
+		}
 		return
 	}
 
@@ -392,7 +394,7 @@ func main() {
 	}
 
 	// Twitch //////////////////////////////
-	tw, ok := startTwitch();
+	tw, ok := startTwitch(db);
 	if !ok {
 		log.Println("Could not open Twitch connection");
 	} else {

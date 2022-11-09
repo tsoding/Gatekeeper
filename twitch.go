@@ -6,6 +6,7 @@ import (
 	"os"
 	"crypto/tls"
 	"time"
+	"database/sql"
 )
 
 const (
@@ -96,7 +97,7 @@ func twitchIncomingLoop(twitchConn *TwitchConn) {
 	twitchConn.IncomingQuit <- 69
 }
 
-func startTwitch() (*TwitchConn, bool) {
+func startTwitch(db *sql.DB) (*TwitchConn, bool) {
 	twitchConn := TwitchConn{
 		Quit: make(chan int),
 		Incoming: make(chan IrcMsg),
@@ -202,9 +203,36 @@ func startTwitch() (*TwitchConn, bool) {
 							continue
 						}
 
-						_, ok := parseCommand(msg.Args[1])
+						env := TwitchEnvironment{
+							AuthorHandle: msg.Nick(),
+							Conn: twitchConn.Conn,
+							Channel: TwitchIrcChannel,
+						}
+
+						command, ok := parseCommand(msg.Args[1])
 						if !ok {
+							if db != nil {
+								feedMessageToCarrotson(db, msg.Args[1])
+							}
 							continue
+						}
+
+						log.Println("Parsed a command:", command)
+						switch command.Name {
+						case "ping":
+							env.SendMessage(env.AtAuthor()+" pong")
+						case "carrot":
+							if db == nil {
+								env.SendMessage(env.AtAuthor()+" Something went wrong with the database. Commands that require it won't work. Please ask "+env.AtAdmin()+" to check the logs")
+								return
+							}
+
+							message, err := carrotsonGenerate(db, command.Args, 256, false)
+							if err != nil {
+								env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
+								return
+							}
+							env.SendMessage(env.AtAuthor()+" "+message)
 						}
 					}
 				}
