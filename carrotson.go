@@ -56,13 +56,13 @@ func queryBranchesFromContext(db *sql.DB, context []rune) ([]Branch, error) {
 }
 
 func branchRandomly(branches []Branch) rune {
-	var sum int64
+	var sum int64 = 0
 	for _, branch := range branches {
 		sum += branch.frequency
 	}
 
 	index := rand.Int63n(sum)
-	var psum int64
+	var psum int64 = 0
 	for _, branch := range branches {
 		psum += branch.frequency
 		if index <= psum {
