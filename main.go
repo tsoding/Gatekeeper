@@ -233,6 +233,7 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 		seed := command.Args
 		r := rand.New(seedAsSource(seed))
 		dg.ChannelMessageSend(m.ChannelID, renderOpenMinesweeperFieldForDiscord(randomMinesweeperField(r), seed))
+	case "🥕": fallthrough
 	case "carrot":
 		if db == nil {
 			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong with the database. Commands that require it won't work. Please ask "+AtID(AdminID)+" to check the logs")
