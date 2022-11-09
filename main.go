@@ -239,7 +239,7 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 			return
 		}
 
-		message, err := carrotsonGenerate(db, command.Args, 2000)
+		message, err := carrotsonGenerate(db, command.Args, 256)
 		if err != nil {
 			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong. Please ask "+AtID(AdminID)+" to check the logs")
 			return
