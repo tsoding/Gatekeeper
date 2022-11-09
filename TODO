@@ -1,0 +1,6 @@
+- Train Carrotson on Twitch data
+- Command handling for Twitch
+- Command profiling
+- New way of piping
+- Start Carrotson messages from the middle of the context
+- Mask out the pings in Discord in Carrotson messages
