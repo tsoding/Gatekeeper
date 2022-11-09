@@ -44,6 +44,10 @@ func (env TwitchEnvironment) AtAuthor() string {
 	return ""
 }
 
+func (env TwitchEnvironment) IsAuthorAdmin() bool {
+	return strings.ToUpper(env.AuthorHandle) == strings.ToUpper(BotAdminTwitchHandle)
+}
+
 func (env TwitchEnvironment) SendMessage(message string) {
 	message = ". "+FilterTrailingForbidden(message);
 	msg := IrcMsg{Name: IrcCmdPrivmsg, Args: []string{env.Channel, message}}
@@ -203,12 +207,6 @@ func startTwitch(db *sql.DB) (*TwitchConn, bool) {
 							continue
 						}
 
-						env := TwitchEnvironment{
-							AuthorHandle: msg.Nick(),
-							Conn: twitchConn.Conn,
-							Channel: TwitchIrcChannel,
-						}
-
 						command, ok := parseCommand(msg.Args[1])
 						if !ok {
 							if db != nil {
@@ -217,23 +215,11 @@ func startTwitch(db *sql.DB) (*TwitchConn, bool) {
 							continue
 						}
 
-						log.Println("Parsed a command:", command)
-						switch command.Name {
-						case "ping":
-							env.SendMessage(env.AtAuthor()+" pong")
-						case "carrot":
-							if db == nil {
-								env.SendMessage(env.AtAuthor()+" Something went wrong with the database. Commands that require it won't work. Please ask "+env.AtAdmin()+" to check the logs")
-								return
-							}
-
-							message, err := carrotsonGenerate(db, command.Args, 256, false)
-							if err != nil {
-								env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
-								return
-							}
-							env.SendMessage(env.AtAuthor()+" "+message)
-						}
+						EvalCommand(db, command, TwitchEnvironment{
+							AuthorHandle: msg.Nick(),
+							Conn: twitchConn.Conn,
+							Channel: TwitchIrcChannel,
+						})
 					}
 				}
 			default: panic("unreachable")
