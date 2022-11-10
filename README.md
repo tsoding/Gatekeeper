@@ -4,9 +4,22 @@ The chat bot Zozin does not want you to know about.
 
 ## Quick Start
 
+### Gatekeeper
+
+Gatekeeper is the bot process itself.
+
 ```console
 $ go build ./cmd/gatekeeper/
 $ ./gatekeeper
+```
+
+### Gaslighter
+
+Gaslighter is the bot configuration command line tool which works by connecting and modifying the bot's database.
+
+```console
+$ go build ./cmd/gaslighter/
+$ ./gaslighter
 ```
 
 ## Environment Variables
