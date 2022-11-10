@@ -6,6 +6,7 @@ import (
 	"time"
 	"math/rand"
 	"github.com/tsoding/gatekeeper/internal"
+	"strconv"
 )
 
 func bump(x *int) int {
@@ -38,9 +39,33 @@ func main() {
 		}
 		defer db.Close()
 
-		prefix := "" // TODO: supply prefix via the args
-		limit := 1024 // TODO: supply limit vai the args
-		message, err := internal.CarrotsonGenerate(db, prefix, limit, false)
+		prefix := ""
+		limit := 1024
+		weighted := false
+
+		for argsCur < len(os.Args) {
+			flag := os.Args[bump(&argsCur)]
+			switch flag {
+			case "-w":
+				weighted = true
+			case "-l":
+				if argsCur < len(os.Args) {
+					log.Printf("ERROR: no value is provided for %s\n", flag)
+					return
+				}
+				value := os.Args[bump(&argsCur)]
+				var err error
+				limit, err = strconv.Atoi(value)
+				if err != nil {
+					log.Println("ERROR: could not parse %s as a value:", err)
+					os.Exit(1)
+				}
+			default:
+				prefix = flag
+			}
+		}
+
+		message, err := internal.CarrotsonGenerate(db, prefix, limit, weighted)
 		if err != nil {
 			log.Println(err)
 			os.Exit(1)
