@@ -1,24 +1,13 @@
 package main
 
 import (
-	"os"
-	"os/signal"
-	"syscall"
-	"log"
-	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"database/sql"
-	_ "github.com/lib/pq"
-	"net/http"
-	"context"
-	"time"
-	"regexp"
-	"github.com/tsoding/smig"
-	"runtime/debug"
-	"net/url"
-	"io/ioutil"
-	"errors"
+	"fmt"
+	"log"
 	"math/rand"
+	"runtime/debug"
+	"os"
 )
 
 func isMemberTrusted(member *discordgo.Member) bool {
@@ -54,34 +43,6 @@ func TrustedTimesOfUser(db *sql.DB, user *discordgo.User) (int, error) {
 	}
 
 	return 0, fmt.Errorf("TrustedTimesOfUser: expected at least one row with result")
-}
-
-var (
-	PlaceNotFound = errors.New("PlaceNotFound")
-	SomebodyTryingToHackWeather = errors.New("SomebodyTryingToHackWeather")
-)
-
-func checkWeatherOf(place string) (string, error) {
-	res, err := http.Get("https://wttr.in/"+url.PathEscape(place)+"?format=4")
-	if err != nil {
-		return "", err
-	}
-	defer res.Body.Close()
-
-	body, err := ioutil.ReadAll(res.Body);
-	if err != nil {
-		return "", err
-	}
-
-	if res.StatusCode == 404 {
-		return "", PlaceNotFound
-	} else if res.StatusCode == 400 {
-		return "", SomebodyTryingToHackWeather
-	} else if res.StatusCode > 400 {
-		return "", fmt.Errorf("Unsuccesful response from wttr.in with code %d: %s", res.StatusCode, string(body))
-	}
-
-	return string(body), nil
 }
 
 var CarrotsonWeighted = true
@@ -276,61 +237,6 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 	}
 }
 
-func migratePostgres(db *sql.DB) bool {
-	log.Println("Checking if there are any migrations to apply")
-	tx, err := db.Begin()
-	if err != nil {
-		log.Println("Error starting the migration transaction:", err)
-		return false
-	}
-
-	err = smig.MigratePG(tx, "./sql/")
-	if err != nil {
-		log.Println("Error during the migration:", err)
-
-		err = tx.Rollback()
-		if err != nil {
-			log.Println("Error rolling back the migration transaction:", err)
-		}
-
-		return false
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		log.Println("Error during committing the transaction:", err)
-		return false
-	}
-
-	log.Println("All the migrations are applied")
-	return true
-}
-
-func startPostgreSQL() *sql.DB {
-	pgsqlConnection, found := os.LookupEnv("GATEKEEPER_PGSQL_CONNECTION")
-	if !found {
-		log.Println("Could not find GATEKEEPER_PGSQL_CONNECTION variable")
-		return nil
-	}
-
-	db, err := sql.Open("postgres", pgsqlConnection)
-	if err != nil {
-		log.Println("Could not open PostgreSQL connection:", err)
-		return nil
-	}
-
-	ok := migratePostgres(db)
-	if !ok {
-		err := db.Close()
-		if err != nil {
-			log.Println("Error while closing PostgreSQL connection due to failed migration:", err)
-		}
-		return nil
-	}
-
-	return db
-}
-
 var (
 	// TODO: unhardcode these parameters (config, database, or something else)
 	AdminID = "180406039500292096"
@@ -372,82 +278,4 @@ func startDiscord(db *sql.DB) (*discordgo.Session, error) {
 	}
 
 	return dg, nil
-}
-
-func main() {
-	rand.Seed(time.Now().UnixNano())
-
-	// PostgreSQL //////////////////////////////
-	db := startPostgreSQL()
-	if db == nil {
-		log.Println("Starting without PostgreSQL. Commands that require it won't work.")
-	} else {
-		defer db.Close()
-	}
-
-	// Discord //////////////////////////////
-	dg, err := startDiscord(db)
-	if err != nil {
-		log.Println("Could not open Discord connection:", err);
-	} else {
-		defer dg.Close();
-	}
-
-	// Twitch //////////////////////////////
-	tw, ok := startTwitch(db);
-	if !ok {
-		log.Println("Could not open Twitch connection");
-	} else {
-		defer tw.Close()
-	}
-
-	// HTTP Server //////////////////////////////
-	// TODO: web client for the REST API
-	server := &http.Server{
-		// TODO: customizable port (probably via envar)
-		Addr: "localhost:6969",
-		Handler: &WebApp{
-			Routes: []Route{
-				Route{
-					Regexp: regexp.MustCompile("^/user/([0-9]+)/children$"),
-					Handler: handlerChildrenOfUser,
-				},
-				Route{
-					Regexp: regexp.MustCompile("^/user$"),
-					Handler: handlerAllUser,
-				},
-				Route{
-					Regexp: regexp.MustCompile("^/(.*)$"),
-					Handler: handlerStatic,
-				},
-			},
-			DB: db,
-		},
-	}
-	server = nil
-
-	go func() {
-		if server != nil {
-			log.Println("Starting Web server")
-			err := server.ListenAndServe()
-			log.Println("HTTP server stopped:", err)
-		} else {
-			log.Println("HTTP server is temporarily disabled")
-		}
-	}()
-
-	// Wait here until CTRL-C or other term signal is received.
-	log.Println("Bot is now running.  Press CTRL-C to exit.")
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
-	<-sc
-
-	// Cleanly close down the Discord session, the Postgres connection and the HTTP server.
-	if server != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			log.Println("Could not shutdown HTTP server:", err)
-		}
-	}
 }

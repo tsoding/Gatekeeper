@@ -5,6 +5,11 @@ import (
 	"database/sql"
 	"time"
 	"log"
+	"fmt"
+	"errors"
+	"net/http"
+	"net/url"
+	"io/ioutil"
 )
 
 var (
@@ -155,4 +160,32 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 
 		env.SendMessage(env.AtAuthor()+" "+response)
 	}
+}
+
+var (
+	PlaceNotFound = errors.New("PlaceNotFound")
+	SomebodyTryingToHackWeather = errors.New("SomebodyTryingToHackWeather")
+)
+
+func checkWeatherOf(place string) (string, error) {
+	res, err := http.Get("https://wttr.in/"+url.PathEscape(place)+"?format=4")
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body);
+	if err != nil {
+		return "", err
+	}
+
+	if res.StatusCode == 404 {
+		return "", PlaceNotFound
+	} else if res.StatusCode == 400 {
+		return "", SomebodyTryingToHackWeather
+	} else if res.StatusCode > 400 {
+		return "", fmt.Errorf("Unsuccesful response from wttr.in with code %d: %s", res.StatusCode, string(body))
+	}
+
+	return string(body), nil
 }
