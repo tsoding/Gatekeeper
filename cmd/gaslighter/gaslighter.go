@@ -2,22 +2,19 @@ package main
 
 import (
 	"os"
-	"log"
+	"fmt"
 	"time"
 	"math/rand"
 	"github.com/tsoding/gatekeeper/internal"
-	"strconv"
 	"database/sql"
+	"flag"
 )
 
-func bump(x *int) int {
-	prev := *x
-	*x += 1
-	return prev
-}
-
-func carrotsonGenerateTree(db *sql.DB, message []rune, limit int) (err error) {
-	log.Println("CARROTSON:", string(message))
+func carrotsonTraverseTree(db *sql.DB, message []rune, limit int, walk func([]rune) error) (err error) {
+	err = walk(message)
+	if err != nil {
+		return
+	}
 	if len(message) < limit {
 		var branches []internal.Branch
 		branches, err = internal.QueryBranchesFromContext(db, internal.ContextOfMessage(message))
@@ -25,7 +22,7 @@ func carrotsonGenerateTree(db *sql.DB, message []rune, limit int) (err error) {
 			return
 		}
 		for _, branch := range branches {
-			err = carrotsonGenerateTree(db, append(message, branch.Follows), limit)
+			err = carrotsonTraverseTree(db, append(message, branch.Follows), limit, walk)
 			if err != nil {
 				return
 			}
@@ -34,74 +31,91 @@ func carrotsonGenerateTree(db *sql.DB, message []rune, limit int) (err error) {
 	return
 }
 
+type Subcmd struct {
+	Run func(args []string) int
+}
+
+var Subcmds = map[string]Subcmd{
+	"carrotree": Subcmd{
+		Run: func(args []string) int {
+			subFlag := flag.NewFlagSet("carrotree", flag.ExitOnError)
+			prefix := subFlag.String("p", "", "Prefix")
+			limit := subFlag.Int("l", 1024, "Limit")
+
+			subFlag.Parse(args)
+
+			db := internal.StartPostgreSQL()
+			if db == nil {
+				return 1
+			}
+			defer db.Close()
+
+			err := carrotsonTraverseTree(db, []rune(*prefix), *limit, func(message []rune) error {
+				fmt.Println("CARROTSON:", string(message))
+				return nil
+			})
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1
+			}
+
+			return 0
+		},
+	},
+	"carrot": Subcmd{
+		Run: func(args []string) int {
+			subFlag := flag.NewFlagSet("carrot", flag.ExitOnError)
+			prefix := subFlag.String("p", "", "Prefix")
+			limit := subFlag.Int("l", 1024, "Limit")
+
+			subFlag.Parse(args)
+
+			db := internal.StartPostgreSQL()
+			if db == nil {
+				return 1
+			}
+			defer db.Close()
+
+			message, err := internal.CarrotsonGenerate(db, *prefix, *limit)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "ERROR: could not generate Carrotson message:", err)
+				return 1;
+			}
+
+			fmt.Println("CARROTSON:", message)
+			return 0
+		},
+	},
+}
+
+func topUsage(program string) {
+	fmt.Fprintf(os.Stderr, "Usage: %s <SUBCOMMAND> [OPTIONS]\n", program);
+	fmt.Fprintf(os.Stderr, "SUBCOMMANDS:\n");
+	for name, _ := range(Subcmds) {
+		fmt.Fprintf(os.Stderr, "    %s\n", name)
+	}
+}
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	argsCur := 0
-	if argsCur >= len(os.Args) {
+	if len(os.Args) <= 0 {
 		panic("Empty command line arguments")
 	}
-	program := os.Args[bump(&argsCur)]
+	program := "gaslighter"
 
-	if argsCur >= len(os.Args) {
-		log.Printf("Usage: %s <SUBCOMMAND> [OPTIONS]\n", program);
-		log.Printf("ERROR: no subcommand is provided\n");
+	if len(os.Args) < 2 {
+		topUsage(program)
+		fmt.Fprintf(os.Stderr, "ERROR: no subcommand is provided\n");
 		os.Exit(1)
 	}
-	subcommand := os.Args[bump(&argsCur)]
+	subcmdName := os.Args[1]
 
-	switch subcommand {
-	case "carrot":
-		db := internal.StartPostgreSQL()
-		if db == nil {
-			os.Exit(1)
-		}
-		defer db.Close()
-
-		prefix := ""
-		limit := 1024
-		tree := false
-
-		for argsCur < len(os.Args) {
-			flag := os.Args[bump(&argsCur)]
-			switch flag {
-			case "-t":
-				tree = true
-			case "-l":
-				if argsCur >= len(os.Args) {
-					log.Printf("ERROR: no value is provided for %s\n", flag)
-					return
-				}
-				value := os.Args[bump(&argsCur)]
-				var err error
-				limit, err = strconv.Atoi(value)
-				if err != nil {
-					log.Println("ERROR: could not parse %s as a value:", err)
-					os.Exit(1)
-				}
-			default:
-				prefix = flag
-			}
-		}
-
-		if tree {
-			err := carrotsonGenerateTree(db, []rune(prefix), limit)
-			if err != nil {
-				log.Println(err)
-				os.Exit(1)
-			}
-		} else {
-			message, err := internal.CarrotsonGenerate(db, prefix, limit)
-			if err != nil {
-				log.Println(err)
-				os.Exit(1)
-			}
-
-			log.Println("CARROTSON:", message)
-		}
-	default:
-		log.Printf("Usage: %s <SUBCOMMAND> [OPTIONS]\n", program);
-		log.Printf("ERROR: unknown subcommand `%s`\n", subcommand);
+	if subcmd, ok := Subcmds[subcmdName]; ok {
+		os.Exit(subcmd.Run(os.Args[2:]))
+	} else {
+		topUsage(program)
+		fmt.Fprintf(os.Stderr, "ERROR: unknown subcommand `%s`\n", subcmdName);
 		os.Exit(1)
 	}
 }
