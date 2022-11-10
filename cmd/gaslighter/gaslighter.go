@@ -7,12 +7,31 @@ import (
 	"math/rand"
 	"github.com/tsoding/gatekeeper/internal"
 	"strconv"
+	"database/sql"
 )
 
 func bump(x *int) int {
 	prev := *x
 	*x += 1
 	return prev
+}
+
+func carrotsonGenerateTree(db *sql.DB, message []rune, limit int) (err error) {
+	log.Println("CARROTSON:", string(message))
+	if len(message) < limit {
+		var branches []internal.Branch
+		branches, err = internal.QueryBranchesFromContext(db, internal.ContextOfMessage(message))
+		if err != nil {
+			return
+		}
+		for _, branch := range branches {
+			err = carrotsonGenerateTree(db, append(message, branch.Follows), limit)
+			if err != nil {
+				return
+			}
+		}
+	}
+	return
 }
 
 func main() {
@@ -41,15 +60,15 @@ func main() {
 
 		prefix := ""
 		limit := 1024
-		weighted := false
+		tree := false
 
 		for argsCur < len(os.Args) {
 			flag := os.Args[bump(&argsCur)]
 			switch flag {
-			case "-w":
-				weighted = true
+			case "-t":
+				tree = true
 			case "-l":
-				if argsCur < len(os.Args) {
+				if argsCur >= len(os.Args) {
 					log.Printf("ERROR: no value is provided for %s\n", flag)
 					return
 				}
@@ -65,13 +84,21 @@ func main() {
 			}
 		}
 
-		message, err := internal.CarrotsonGenerate(db, prefix, limit, weighted)
-		if err != nil {
-			log.Println(err)
-			os.Exit(1)
-		}
+		if tree {
+			err := carrotsonGenerateTree(db, []rune(prefix), limit)
+			if err != nil {
+				log.Println(err)
+				os.Exit(1)
+			}
+		} else {
+			message, err := internal.CarrotsonGenerate(db, prefix, limit)
+			if err != nil {
+				log.Println(err)
+				os.Exit(1)
+			}
 
-		log.Println("CARROTSON:", message)
+			log.Println("CARROTSON:", message)
+		}
 	default:
 		log.Printf("Usage: %s <SUBCOMMAND> [OPTIONS]\n", program);
 		log.Printf("ERROR: unknown subcommand `%s`\n", subcommand);

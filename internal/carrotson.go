@@ -29,11 +29,11 @@ func splitMessageIntoPaths(message []rune) (branches []Path) {
 }
 
 type Branch struct {
-	follows rune
-	frequency int64
+	Follows rune
+	Frequency int64
 }
 
-func queryBranchesFromContext(db *sql.DB, context []rune) ([]Branch, error) {
+func QueryBranchesFromContext(db *sql.DB, context []rune) ([]Branch, error) {
 	rows, err := db.Query("SELECT follows, frequency FROM Carrotson_Branches WHERE context = $1", string(context))
 	if err != nil {
 		return nil, err
@@ -42,48 +42,20 @@ func queryBranchesFromContext(db *sql.DB, context []rune) ([]Branch, error) {
 	for rows.Next() {
 		branch := Branch{}
 		var follows string
-		err = rows.Scan(&follows, &branch.frequency)
+		err = rows.Scan(&follows, &branch.Frequency)
 		if err != nil {
 			return nil, err
 		}
 		if len(follows) == 0 {
 			return nil, fmt.Errorf("Empty follows")
 		}
-		branch.follows = []rune(follows)[0]
+		branch.Follows = []rune(follows)[0]
 		branches = append(branches, branch)
 	}
 	return branches, nil
 }
 
-type BranchStrategy int
-
-func branchRandomly(branches []Branch, weighted bool) rune {
-	if weighted {
-		var sum int64 = 0
-		for _, branch := range branches {
-			sum += branch.frequency
-		}
-
-		index := rand.Int63n(sum)
-		var psum int64 = 0
-		for _, branch := range branches {
-			psum += branch.frequency
-			if index <= psum {
-				return branch.follows
-			}
-		}
-
-		panic("unreachable")
-	} else {
-		if len(branches) == 0 {
-			panic("unreachable")
-		}
-
-		return branches[rand.Intn(len(branches))].follows
-	}
-}
-
-func contextOfMessage(message []rune) []rune {
+func ContextOfMessage(message []rune) []rune {
 	i := len(message) - ContextSize
 	if i < 0 {
 		i = 0
@@ -91,14 +63,14 @@ func contextOfMessage(message []rune) []rune {
 	return message[i:len(message)]
 }
 
-func CarrotsonGenerate(db *sql.DB, prefix string, limit int, weighted bool) (string, error) {
+func CarrotsonGenerate(db *sql.DB, prefix string, limit int) (string, error) {
 	var err error = nil
 	message := []rune(prefix)
-	branches, err := queryBranchesFromContext(db, contextOfMessage(message))
+	branches, err := QueryBranchesFromContext(db, ContextOfMessage(message))
 	for err == nil && len(branches) > 0 && len(message) < limit {
-		follows := branchRandomly(branches, weighted)
+		follows := branches[rand.Intn(len(branches))].Follows
 		message = append(message, follows)
-		branches, err = queryBranchesFromContext(db, contextOfMessage(message))
+		branches, err = QueryBranchesFromContext(db, ContextOfMessage(message))
 	}
 	return string(message), err
 }
