@@ -15,7 +15,7 @@ $ ./gatekeeper
 
 ### Gaslighter
 
-Gaslighter is the bot configuration command line tool which works by connecting and modifying the bot's database.
+Gaslighter is the bot configuration command line tool which works by connecting to the bot's database and modifying it.
 
 ```console
 $ go build ./cmd/gaslighter/
