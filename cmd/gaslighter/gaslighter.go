@@ -36,6 +36,39 @@ type Subcmd struct {
 }
 
 var Subcmds = map[string]Subcmd{
+	"uncarrot": Subcmd{
+		Run: func(args []string) int {
+			subFlag := flag.NewFlagSet("uncarrot", flag.ExitOnError)
+			message := subFlag.String("p", "", "Message to remove from the Carrotson model")
+
+			subFlag.Parse(args)
+
+			if len(*message) == 0 {
+				fmt.Fprintf(os.Stderr, "ERROR: no message was provided to uncarrot. Use flag -m to provide the message.")
+				return 1
+			}
+
+			db := internal.StartPostgreSQL()
+			if db == nil {
+				return 1
+			}
+			defer db.Close()
+
+			runesOfMessage := []rune(*message)
+			for i := 0; i + internal.ContextSize < len(runesOfMessage); i += 1 {
+				context := string(runesOfMessage[i:i + internal.ContextSize])
+				follows := string(runesOfMessage[i + internal.ContextSize:i + internal.ContextSize + 1])
+				_, err := db.Exec("UPDATE Carrotson_Branches SET frequency = 0 WHERE context = $1 and follows = $2",
+					context, follows)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "ERROR: could not remove branch (%v, %v) from model: %s\n", context, follows, err)
+					return 1
+				}
+			}
+
+			return 0
+		},
+	},
 	"carrotree": Subcmd{
 		Run: func(args []string) int {
 			subFlag := flag.NewFlagSet("carrotree", flag.ExitOnError)

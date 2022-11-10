@@ -34,7 +34,7 @@ type Branch struct {
 }
 
 func QueryBranchesFromContext(db *sql.DB, context []rune) ([]Branch, error) {
-	rows, err := db.Query("SELECT follows, frequency FROM Carrotson_Branches WHERE context = $1", string(context))
+	rows, err := db.Query("SELECT follows, frequency FROM Carrotson_Branches WHERE context = $1 AND frequency > 0", string(context))
 	if err != nil {
 		return nil, err
 	}
