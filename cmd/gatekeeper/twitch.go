@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"time"
 	"database/sql"
+	"github.com/tsoding/gatekeeper/internal"
 )
 
 const (
@@ -210,7 +211,7 @@ func startTwitch(db *sql.DB) (*TwitchConn, bool) {
 						command, ok := parseCommand(msg.Args[1])
 						if !ok {
 							if db != nil {
-								feedMessageToCarrotson(db, msg.Args[1])
+								internal.FeedMessageToCarrotson(db, msg.Args[1])
 							}
 							continue
 						}

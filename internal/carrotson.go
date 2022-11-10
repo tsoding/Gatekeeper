@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"database/sql"
@@ -91,7 +91,7 @@ func contextOfMessage(message []rune) []rune {
 	return message[i:len(message)]
 }
 
-func carrotsonGenerate(db *sql.DB, prefix string, limit int, weighted bool) (string, error) {
+func CarrotsonGenerate(db *sql.DB, prefix string, limit int, weighted bool) (string, error) {
 	var err error = nil
 	message := []rune(prefix)
 	branches, err := queryBranchesFromContext(db, contextOfMessage(message))
@@ -103,7 +103,7 @@ func carrotsonGenerate(db *sql.DB, prefix string, limit int, weighted bool) (str
 	return string(message), err
 }
 
-func feedMessageToCarrotson(db *sql.DB, message string) {
+func FeedMessageToCarrotson(db *sql.DB, message string) {
 	tx, err := db.Begin()
 	if err != nil {
 		log.Println("ERROR: feedMessageToCarrotson: could not start transaction:", err)

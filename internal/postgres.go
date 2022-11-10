@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"log"
@@ -38,7 +38,7 @@ func migratePostgres(db *sql.DB) bool {
 	return true
 }
 
-func startPostgreSQL() *sql.DB {
+func StartPostgreSQL() *sql.DB {
 	pgsqlConnection, found := os.LookupEnv("GATEKEEPER_PGSQL_CONNECTION")
 	if !found {
 		log.Println("Could not find GATEKEEPER_PGSQL_CONNECTION variable")

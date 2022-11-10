@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"io/ioutil"
+	"github.com/tsoding/gatekeeper/internal"
 )
 
 var (
@@ -108,7 +109,7 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 			return
 		}
 
-		message, err := carrotsonGenerate(db, command.Args, 128, false)
+		message, err := internal.CarrotsonGenerate(db, command.Args, 128, false)
 		if err != nil {
 			env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
 			return

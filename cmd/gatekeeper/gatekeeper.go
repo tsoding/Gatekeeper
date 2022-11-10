@@ -10,13 +10,14 @@ import (
 	"time"
 	"regexp"
 	"math/rand"
+	"github.com/tsoding/gatekeeper/internal"
 )
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	// PostgreSQL //////////////////////////////
-	db := startPostgreSQL()
+	db := internal.StartPostgreSQL()
 	if db == nil {
 		log.Println("Starting without PostgreSQL. Commands that require it won't work.")
 	} else {

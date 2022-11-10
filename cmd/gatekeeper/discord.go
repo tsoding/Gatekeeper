@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/bwmarrin/discordgo"
+	"github.com/tsoding/gatekeeper/internal"
 	"database/sql"
 	"fmt"
 	"log"
@@ -55,7 +56,7 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 	command, ok := parseCommand(m.Content)
 	if !ok {
 		if db != nil {
-			feedMessageToCarrotson(db, m.Content)
+			internal.FeedMessageToCarrotson(db, m.Content)
 		}
 		return
 	}
@@ -228,7 +229,7 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 			return
 		}
 
-		message, err := carrotsonGenerate(db, command.Args, 1024, CarrotsonWeighted)
+		message, err := internal.CarrotsonGenerate(db, command.Args, 1024, CarrotsonWeighted)
 		if err != nil {
 			dg.ChannelMessageSend(m.ChannelID, AtUser(m.Author)+" Something went wrong. Please ask "+AtID(AdminID)+" to check the logs")
 			return
