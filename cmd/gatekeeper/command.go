@@ -11,11 +11,23 @@ import (
 	"net/url"
 	"io/ioutil"
 	"github.com/tsoding/gatekeeper/internal"
+	"runtime/debug"
+	"math/rand"
 )
 
 var (
 	CommandPrefix = "\\$"
 	CommandRegexp = regexp.MustCompile("^ *"+CommandPrefix+" *([a-zA-Z0-9\\-_]+)( +(.*))?$")
+	Commit = func() string {
+		if info, ok := debug.ReadBuildInfo(); ok {
+			for _, setting := range info.Settings {
+				if setting.Key == "vcs.revision" {
+					return setting.Value
+				}
+			}
+		}
+		return "<none>"
+	}()
 )
 
 type Command struct {
@@ -38,11 +50,16 @@ type CommandEnvironment interface {
 	AtAdmin() string
 	AtAuthor() string
 	IsAuthorAdmin() bool
+	AsDiscord() *DiscordEnvironment
 	SendMessage(message string)
 }
 
 type CyrillifyEnvironment struct {
 	InnerEnv CommandEnvironment
+}
+
+func (env *CyrillifyEnvironment) AsDiscord() *DiscordEnvironment {
+	return env.InnerEnv.AsDiscord()
 }
 
 func (env *CyrillifyEnvironment) AtAdmin() string {
@@ -160,6 +177,141 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 		}
 
 		env.SendMessage(env.AtAuthor()+" "+response)
+	case "version":
+		env.SendMessage(env.AtAuthor()+" "+Commit)
+	case "untrust":
+		env.SendMessage(env.AtAuthor()+" what is done is done ( -_-)")
+	case "count":
+		if db == nil {
+			env.SendMessage(env.AtAuthor()+" Something went wrong with the database. Commands that require it won't work. Please ask "+env.AtAdmin()+" to check the logs")
+			return
+		}
+
+		discordEnv := env.AsDiscord()
+		if discordEnv == nil {
+			env.SendMessage(env.AtAuthor()+" This command only works in Discord, sorry")
+			return
+		}
+
+		if !isMemberTrusted(discordEnv.m.Member) {
+			env.SendMessage(env.AtAuthor()+" Only trusted users can trust others")
+			return
+		}
+		count, err := TrustedTimesOfUser(db, discordEnv.m.Author);
+		if err != nil {
+			log.Println("Could not get amount of trusted times:", err)
+			env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
+			return
+		}
+		env.SendMessage(fmt.Sprintf("%s Used %d out of %d trusts", env.AtAuthor(), count, MaxTrustedTimes))
+	case "trust":
+		if db == nil {
+			env.SendMessage(env.AtAuthor()+" Something went wrong with the database. Commands that require it won't work. Please ask "+env.AtAdmin()+" to check the logs")
+			return
+		}
+
+		discordEnv := env.AsDiscord()
+		if discordEnv == nil {
+			env.SendMessage(env.AtAuthor()+" This command only works in Discord, sorry")
+			return
+		}
+
+		if !isMemberTrusted(discordEnv.m.Member) {
+			env.SendMessage(env.AtAuthor()+" Only trusted users can trust others")
+			return
+		}
+
+		if len(discordEnv.m.Mentions) == 0 {
+			env.SendMessage(env.AtAuthor()+" Please ping the user you want to trust")
+			return
+		}
+
+		if len(discordEnv.m.Mentions) > 1 {
+			env.SendMessage(env.AtAuthor()+" You can't trust several people simultaneously")
+			return
+		}
+
+		mention := discordEnv.m.Mentions[0]
+
+		count, err := TrustedTimesOfUser(db, discordEnv.m.Author);
+		if err != nil {
+			log.Println("Could not get amount of trusted times:", err)
+			env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
+			return
+		}
+		if count >= MaxTrustedTimes {
+			if !env.IsAuthorAdmin() {
+				env.SendMessage(fmt.Sprintf("%s You ran out of trusts. Used %d out of %d", env.AtAuthor(), count, MaxTrustedTimes))
+				return
+			} else {
+				env.SendMessage(fmt.Sprintf("%s You ran out of trusts. Used %d out of %d. But since you are the %s I'll make an exception for you.", env.AtAuthor(), count, MaxTrustedTimes, env.AtAdmin()))
+			}
+		}
+
+		if mention.ID == discordEnv.m.Author.ID {
+			env.SendMessage(env.AtAuthor()+" On this server you can't trust yourself!")
+			return
+		}
+
+		mentionMember, err := discordEnv.dg.GuildMember(discordEnv.m.GuildID, mention.ID)
+		if err != nil {
+			log.Printf("Could not get roles of user %s: %s\n", mention.ID, err)
+			env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
+			return
+		}
+
+		if isMemberTrusted(mentionMember) {
+			env.SendMessage(env.AtAuthor()+" That member is already trusted")
+			return
+		}
+
+		// TODO: do all of that in a transation that is rollbacked when GuildMemberRoleAdd fails
+		// TODO: add record to trusted users table
+		_, err = db.Exec("INSERT INTO TrustLog (trusterId, trusteeId) VALUES ($1, $2);", discordEnv.m.Author.ID, mention.ID)
+		if err != nil {
+			log.Printf("Could not save a TrustLog entry: %s\n", err);
+			env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
+			return
+		}
+
+		err = discordEnv.dg.GuildMemberRoleAdd(discordEnv.m.GuildID, mention.ID, TrustedRoleId)
+		if err != nil {
+			log.Printf("Could not assign role %s to user %s: %s\n", TrustedRoleId, mention.ID, err)
+			env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
+			return
+		}
+
+		env.SendMessage(fmt.Sprintf("%s Trusted %s. Used %d out of %d trusts.", env.AtAuthor(), AtUser(mention), count+1, MaxTrustedTimes))
+	case "mine":
+		if env.AsDiscord() == nil {
+			env.SendMessage(env.AtAuthor()+" This command only works in Discord, sorry")
+			return
+		}
+
+		// TODO: make the field size customizable via the command parameters
+		var seed string
+		if len(command.Args) > 0 {
+			seed = command.Args
+		} else {
+			seed = randomMinesweeperSeed()
+		}
+
+		r := rand.New(seedAsSource(seed))
+		env.SendMessage(renderMinesweeperFieldForDiscord(randomMinesweeperField(r), seed));
+	case "mineopen":
+		if env.AsDiscord() == nil {
+			env.SendMessage(env.AtAuthor()+" This command only works in Discord, sorry")
+			return
+		}
+
+		if len(command.Args) == 0 {
+			env.SendMessage(env.AtAuthor()+" please provide the seed")
+			return
+		}
+
+		seed := command.Args
+		r := rand.New(seedAsSource(seed))
+		env.SendMessage(renderOpenMinesweeperFieldForDiscord(randomMinesweeperField(r), seed))
 	}
 }
 

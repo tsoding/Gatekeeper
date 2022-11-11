@@ -34,22 +34,26 @@ type TwitchEnvironment struct {
 	Channel string
 }
 
-func (env TwitchEnvironment) AtAdmin() string {
+func (env *TwitchEnvironment) AsDiscord() *DiscordEnvironment {
+	return nil
+}
+
+func (env *TwitchEnvironment) AtAdmin() string {
 	return "@"+BotAdminTwitchHandle
 }
 
-func (env TwitchEnvironment) AtAuthor() string {
+func (env *TwitchEnvironment) AtAuthor() string {
 	if len(env.AuthorHandle) > 0 {
 		return "@"+env.AuthorHandle
 	}
 	return ""
 }
 
-func (env TwitchEnvironment) IsAuthorAdmin() bool {
+func (env *TwitchEnvironment) IsAuthorAdmin() bool {
 	return strings.ToUpper(env.AuthorHandle) == strings.ToUpper(BotAdminTwitchHandle)
 }
 
-func (env TwitchEnvironment) SendMessage(message string) {
+func (env *TwitchEnvironment) SendMessage(message string) {
 	message = ". "+FilterTrailingForbidden(message);
 	msg := IrcMsg{Name: IrcCmdPrivmsg, Args: []string{env.Channel, message}}
 	err := msg.Send(env.Conn)
@@ -216,7 +220,7 @@ func startTwitch(db *sql.DB) (*TwitchConn, bool) {
 							continue
 						}
 
-						EvalCommand(db, command, TwitchEnvironment{
+						EvalCommand(db, command, &TwitchEnvironment{
 							AuthorHandle: msg.Nick(),
 							Conn: twitchConn.Conn,
 							Channel: TwitchIrcChannel,
