@@ -131,7 +131,12 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 			env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
 			return
 		}
-		env.SendMessage(env.AtAuthor()+" "+message)
+
+		if env.AsDiscord() != nil {
+			env.SendMessage(env.AtAuthor()+" "+maskDiscordPings(message))
+		} else {
+			env.SendMessage(env.AtAuthor()+" "+message)
+		}
 	case "profile":
 		if !env.IsAuthorAdmin() {
 			env.SendMessage(env.AtAuthor()+" only for "+env.AtAdmin());

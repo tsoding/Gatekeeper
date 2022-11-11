@@ -6,7 +6,14 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"regexp"
 )
+
+var DiscordPingRegexp = regexp.MustCompile("<@[0-9]+>")
+
+func maskDiscordPings(message string) string {
+	return DiscordPingRegexp.ReplaceAllString(message, "@[DISCORD PING REDACTED]")
+}
 
 func isMemberTrusted(member *discordgo.Member) bool {
 	for _, roleId := range member.Roles {
