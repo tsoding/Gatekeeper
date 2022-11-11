@@ -143,7 +143,6 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 			env.SendMessage(env.AtAuthor()+" failed to parse inner command")
 			return
 		}
-		// TODO: disallow too many nested profiles
 		start := time.Now()
 		EvalCommand(db, innerCommand, env);
 		elapsed := time.Since(start)
