@@ -311,6 +311,8 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 		seed := command.Args
 		r := rand.New(seedAsSource(seed))
 		env.SendMessage(renderOpenMinesweeperFieldForDiscord(randomMinesweeperField(r), seed))
+	case "code":
+		env.SendMessage(fmt.Sprintf("%s `%s`", env.AtAuthor(), command.Args))
 	default:
 		env.SendMessage(fmt.Sprintf("%s command `%s` does not exist", env.AtAuthor(), command.Name))
 	}
