@@ -3,8 +3,7 @@ package internal
 import (
 	"database/sql"
 	"log"
-	"fmt"
-	"math/rand"
+	"errors"
 )
 
 const ContextSize = 8
@@ -33,6 +32,30 @@ type Branch struct {
 	Frequency int64
 }
 
+var (
+	EmptyFollowsError = errors.New("Empty follows of a Carrotson branch")
+)
+
+func QueryRandomBranchFromContext(db *sql.DB, context []rune) (*Branch, error) {
+	row := db.QueryRow("SELECT follows, frequency FROM Carrotson_Branches WHERE context = $1 AND frequency > 0 ORDER BY random() LIMIT 1", string(context))
+	var follows string
+	var frequency int64
+	err := row.Scan(&follows, &frequency)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if len(follows) == 0 {
+		return nil, EmptyFollowsError
+	}
+	return &Branch{
+		Follows: []rune(follows)[0],
+		Frequency: frequency,
+	}, nil
+}
+
 func QueryBranchesFromContext(db *sql.DB, context []rune) ([]Branch, error) {
 	rows, err := db.Query("SELECT follows, frequency FROM Carrotson_Branches WHERE context = $1 AND frequency > 0", string(context))
 	if err != nil {
@@ -47,7 +70,7 @@ func QueryBranchesFromContext(db *sql.DB, context []rune) ([]Branch, error) {
 			return nil, err
 		}
 		if len(follows) == 0 {
-			return nil, fmt.Errorf("Empty follows")
+			return nil, EmptyFollowsError
 		}
 		branch.Follows = []rune(follows)[0]
 		branches = append(branches, branch)
@@ -66,11 +89,10 @@ func ContextOfMessage(message []rune) []rune {
 func CarrotsonGenerate(db *sql.DB, prefix string, limit int) (string, error) {
 	var err error = nil
 	message := []rune(prefix)
-	branches, err := QueryBranchesFromContext(db, ContextOfMessage(message))
-	for err == nil && len(branches) > 0 && len(message) < limit {
-		follows := branches[rand.Intn(len(branches))].Follows
-		message = append(message, follows)
-		branches, err = QueryBranchesFromContext(db, ContextOfMessage(message))
+	branch, err := QueryRandomBranchFromContext(db, ContextOfMessage(message))
+	for err == nil && branch != nil && len(message) < limit {
+		message = append(message, branch.Follows)
+		branch, err = QueryRandomBranchFromContext(db, ContextOfMessage(message))
 	}
 	return string(message), err
 }
