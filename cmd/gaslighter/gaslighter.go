@@ -54,6 +54,7 @@ var Subcmds = map[string]Subcmd{
 			}
 			defer db.Close()
 
+			// TODO: uncarrot does not properly remove the prefix of the message
 			runesOfMessage := []rune(*message)
 			for i := 0; i + internal.ContextSize < len(runesOfMessage); i += 1 {
 				context := string(runesOfMessage[i:i + internal.ContextSize])
