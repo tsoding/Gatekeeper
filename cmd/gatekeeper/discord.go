@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"log"
 )
 
 var DiscordPingRegexp = regexp.MustCompile("<@[0-9]+>")
@@ -72,8 +73,10 @@ func (env *DiscordEnvironment) IsAuthorAdmin() bool {
 }
 
 func (env *DiscordEnvironment) SendMessage(message string) {
-	// TODO: Check for results of dg.ChannelMessageSend
-	env.dg.ChannelMessageSend(env.m.ChannelID, message)
+	_, err := env.dg.ChannelMessageSend(env.m.ChannelID, message)
+	if err != nil {
+		log.Println("Error during sending discord message", err)
+	}
 }
 
 func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.MessageCreate) {
