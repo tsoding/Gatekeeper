@@ -24,14 +24,6 @@ type IrcMsg struct {
 	Args []string
 }
 
-// `granum` stands for `Grammatical Number`: https://en.wikipedia.org/wiki/Grammatical_number
-func granum(amount int, singular string, plural string) string {
-	if amount == 1 {
-		return fmt.Sprintf("1 %s", singular)
-	}
-	return fmt.Sprintf("%d %s", amount, plural)
-}
-
 // TODO: IrcMsg serialization should probably check for max IRC message length
 func (msg *IrcMsg) String() (result string, ok bool) {
 	var sb strings.Builder

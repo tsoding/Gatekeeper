@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 	"log"
+	"fmt"
 	"os"
 	"crypto/tls"
 	"time"
@@ -104,6 +105,14 @@ func twitchIncomingLoop(twitchConn *TwitchConn) {
 	}
 
 	twitchConn.IncomingQuit <- 69
+}
+
+// `granum` stands for `Grammatical Number`: https://en.wikipedia.org/wiki/Grammatical_number
+func granum(amount int, singular string, plural string) string {
+	if amount == 1 {
+		return fmt.Sprintf("1 %s", singular)
+	}
+	return fmt.Sprintf("%d %s", amount, plural)
 }
 
 func startTwitch(db *sql.DB) (*TwitchConn, bool) {
