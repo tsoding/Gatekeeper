@@ -123,6 +123,7 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 	// TODO: uncarrot discord message by its id
 	case "carrot":
 		if db == nil {
+			// TODO: add some sort of cooldown for the @admin pings
 			env.SendMessage(env.AtAuthor()+" Something went wrong with the database. Commands that require it won't work. Please ask "+env.AtAdmin()+" to check the logs")
 			return
 		}
