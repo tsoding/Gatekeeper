@@ -12,6 +12,19 @@ import (
 
 var DiscordPingRegexp = regexp.MustCompile("<@[0-9]+>")
 
+const (
+	RolesChannelId = "777109841416159264"
+
+	PingEmojiId = "777109447600111656"
+	PingedRoleId = "777108731766505472"
+
+	AocEmojiId = "🌲"
+	AocRoleId = "783548342390620201"
+
+	IntrovertEmojiId = "👀"
+	IntrovertRoleId = "791706084654055517"
+)
+
 func maskDiscordPings(message string) string {
 	return DiscordPingRegexp.ReplaceAllString(message, "@[DISCORD PING REDACTED]")
 }
@@ -105,6 +118,19 @@ var (
 	TrustedRoleId = "543864981171470346"
 )
 
+func roleOfEmoji(emoji *discordgo.Emoji) (string, bool) {
+	emojiId := emoji.ID
+	if emojiId == "" {
+		emojiId = emoji.Name
+	}
+	switch emojiId {
+	case PingEmojiId:      return PingedRoleId, true
+	case AocEmojiId:       return AocRoleId, true
+	case IntrovertEmojiId: return IntrovertRoleId, true
+	default:               return "", false
+	}
+}
+
 func startDiscord(db *sql.DB) (*discordgo.Session, error) {
 	discordToken, found := os.LookupEnv("GATEKEEPER_DISCORD_TOKEN")
 	if !found {
@@ -118,6 +144,30 @@ func startDiscord(db *sql.DB) (*discordgo.Session, error) {
 
 	dg.Identify.Intents = discordgo.IntentsGuildMessages
 
+	dg.AddHandler(func (s *discordgo.Session, m *discordgo.MessageReactionAdd) {
+		if m.MessageReaction.ChannelID == RolesChannelId {
+			roleId, found := roleOfEmoji(&m.MessageReaction.Emoji)
+			if found {
+				log.Println("Adding role", roleId, "to user", m.MessageReaction.UserID);
+				err := s.GuildMemberRoleAdd(m.MessageReaction.GuildID, m.MessageReaction.UserID, roleId)
+				if err != nil {
+					log.Println("Error adding role:", err)
+				}
+			}
+		}
+	})
+	dg.AddHandler(func (s *discordgo.Session, m *discordgo.MessageReactionRemove) {
+		if m.MessageReaction.ChannelID == RolesChannelId {
+			roleId, found := roleOfEmoji(&m.MessageReaction.Emoji)
+			if found {
+				log.Println("Removing role", roleId, "from user", m.MessageReaction.UserID);
+				err := s.GuildMemberRoleRemove(m.MessageReaction.GuildID, m.MessageReaction.UserID, roleId)
+				if err != nil {
+					log.Println("Error removing role:", err)
+				}
+			}
+		}
+	})
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate){
 		handleDiscordMessage(db, s, m)
 	})
