@@ -142,7 +142,7 @@ func startDiscord(db *sql.DB) (*discordgo.Session, error) {
 		return nil, err
 	}
 
-	dg.Identify.Intents = discordgo.IntentsGuildMessages
+	dg.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentGuildMessageReactions
 
 	dg.AddHandler(func (s *discordgo.Session, m *discordgo.MessageReactionAdd) {
 		if m.MessageReaction.ChannelID == RolesChannelId {
