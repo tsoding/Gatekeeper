@@ -96,6 +96,21 @@ var Subcmds = map[string]Subcmd{
 			return 0
 		},
 	},
+	"carrotadd": Subcmd{
+		Run: func(args []string) int {
+			db := internal.StartPostgreSQL()
+			if db == nil {
+				return 1
+			}
+			defer db.Close()
+
+			for _, arg := range args {
+				internal.FeedMessageToCarrotson(db, arg)
+			}
+
+			return 0
+		},
+	},
 	"carrot": Subcmd{
 		Run: func(args []string) int {
 			subFlag := flag.NewFlagSet("carrot", flag.ExitOnError)
