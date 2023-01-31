@@ -321,6 +321,10 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 	case "code":
 		env.SendMessage(fmt.Sprintf("%s `%s`", env.AtAuthor(), command.Args))
 	case "ignore":
+	case "when":
+		env.SendMessage(fmt.Sprintf("%s %s is tomorrow <:POGGERS:543420632474451988>", env.AtAuthor(), command.Args))
+	case "redirect":
+		env.SendMessage(fmt.Sprintf("<:tsodinHmpf:908286361025519676> 👉 %s", command.Args))
 	default:
 		env.SendMessage(fmt.Sprintf("%s command `%s` does not exist", env.AtAuthor(), command.Name))
 	}
