@@ -205,7 +205,11 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 			env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
 			return
 		}
-		env.SendMessage(fmt.Sprintf("%s Used %d out of %d trusts", env.AtAuthor(), count, MaxTrustedTimes))
+		if count > MaxTrustedTimes {
+			env.SendMessage(fmt.Sprintf("%s Used %d out of %d trusts <:tsodinSus:940724160680845373>", env.AtAuthor(), count, MaxTrustedTimes))
+		} else {
+			env.SendMessage(fmt.Sprintf("%s Used %d out of %d trusts", env.AtAuthor(), count, MaxTrustedTimes))
+		}
 	case "trust":
 		if db == nil {
 			env.SendMessage(env.AtAuthor()+" Something went wrong with the database. Commands that require it won't work. Please ask "+env.AtAdmin()+" to check the logs")
