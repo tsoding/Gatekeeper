@@ -1,24 +1,24 @@
 package main
 
 import (
-	"regexp"
 	"database/sql"
-	"time"
-	"log"
-	"fmt"
 	"errors"
+	"fmt"
+	"github.com/tsoding/gatekeeper/internal"
+	"io/ioutil"
+	"log"
+	"math/rand"
 	"net/http"
 	"net/url"
-	"io/ioutil"
-	"github.com/tsoding/gatekeeper/internal"
+	"regexp"
 	"runtime/debug"
-	"math/rand"
+	"time"
 )
 
 var (
 	CommandPrefix = "\\$"
-	CommandRegexp = regexp.MustCompile("^ *"+CommandPrefix+" *([a-zA-Z0-9\\-_]+)( +(.*))?$")
-	Commit = func() string {
+	CommandRegexp = regexp.MustCompile("^ *" + CommandPrefix + " *([a-zA-Z0-9\\-_]+)( +(.*))?$")
+	Commit        = func() string {
 		if info, ok := debug.ReadBuildInfo(); ok {
 			for _, setting := range info.Settings {
 				if setting.Key == "vcs.revision" {
@@ -90,7 +90,7 @@ func Cyrillify(message string) string {
 	return string(result)
 }
 
-var CyrilMap = map[rune]rune {
+var CyrilMap = map[rune]rune{
 	'a': 'д',
 	'e': 'ё',
 	'b': 'б',
@@ -119,37 +119,38 @@ var CyrilMap = map[rune]rune {
 func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 	switch command.Name {
 	case "ping":
-		env.SendMessage(env.AtAuthor()+" pong")
+		env.SendMessage(env.AtAuthor() + " pong")
 	// TODO: uncarrot discord message by its id
 	case "carrot":
 		if db == nil {
 			// TODO: add some sort of cooldown for the @admin pings
-			env.SendMessage(env.AtAuthor()+" Something went wrong with the database. Commands that require it won't work. Please ask "+env.AtAdmin()+" to check the logs")
+			env.SendMessage(env.AtAuthor() + " Something went wrong with the database. Commands that require it won't work. Please ask " + env.AtAdmin() + " to check the logs")
 			return
 		}
 
-		message, err := internal.CarrotsonGenerate(db, command.Args, 128)
+		message, err := internal.CarrotsonGenerate(db, command.Args, 256)
 		if err != nil {
-			env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
+			log.Printf("%s\n", err)
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
 			return
 		}
 
-		env.SendMessage(env.AtAuthor()+" "+maskDiscordPings(message))
+		env.SendMessage(env.AtAuthor() + " " + maskDiscordPings(message))
 	case "profile":
 		if !env.IsAuthorAdmin() {
-			env.SendMessage(env.AtAuthor()+" only for "+env.AtAdmin());
+			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
 			return
 		}
 
 		innerCommand, ok := parseCommand(command.Args)
 		if !ok {
-			env.SendMessage(env.AtAuthor()+" failed to parse inner command")
+			env.SendMessage(env.AtAuthor() + " failed to parse inner command")
 			return
 		}
 		start := time.Now()
-		EvalCommand(db, innerCommand, env);
+		EvalCommand(db, innerCommand, env)
 		elapsed := time.Since(start)
-		env.SendMessage(env.AtAuthor()+" `"+command.Args+"` took "+elapsed.String()+" to executed")
+		env.SendMessage(env.AtAuthor() + " `" + command.Args + "` took " + elapsed.String() + " to executed")
 	case "cyril":
 		innerCommand, ok := parseCommand(command.Args)
 		if !ok {
@@ -167,42 +168,42 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 		if len(place) > 0 {
 			response, err = checkWeatherOf(place)
 			if err == PlaceNotFound {
-				response = "Could not find `"+place+"`"
+				response = "Could not find `" + place + "`"
 			} else if err == SomebodyTryingToHackWeather {
 				response = "Are you trying to hack me or something? ._."
 			} else if err != nil {
-				response = "Something went wrong while querying the weather for `"+place+"`. "+AtID(AdminID)+" please check the logs."
+				response = "Something went wrong while querying the weather for `" + place + "`. " + AtID(AdminID) + " please check the logs."
 				log.Println("Error while checking the weather for `"+place+"`:", err)
 			}
 		} else {
-			response = "No place is provided for "+CommandPrefix+"weather"
+			response = "No place is provided for " + CommandPrefix + "weather"
 		}
 
-		env.SendMessage(env.AtAuthor()+" "+response)
+		env.SendMessage(env.AtAuthor() + " " + response)
 	case "version":
-		env.SendMessage(env.AtAuthor()+" "+Commit)
+		env.SendMessage(env.AtAuthor() + " " + Commit)
 	case "untrust":
-		env.SendMessage(env.AtAuthor()+" what is done is done ( -_-)")
+		env.SendMessage(env.AtAuthor() + " what is done is done ( -_-)")
 	case "count":
 		if db == nil {
-			env.SendMessage(env.AtAuthor()+" Something went wrong with the database. Commands that require it won't work. Please ask "+env.AtAdmin()+" to check the logs")
+			env.SendMessage(env.AtAuthor() + " Something went wrong with the database. Commands that require it won't work. Please ask " + env.AtAdmin() + " to check the logs")
 			return
 		}
 
 		discordEnv := env.AsDiscord()
 		if discordEnv == nil {
-			env.SendMessage(env.AtAuthor()+" This command only works in Discord, sorry")
+			env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
 			return
 		}
 
 		if !isMemberTrusted(discordEnv.m.Member) {
-			env.SendMessage(env.AtAuthor()+" Only trusted users can trust others")
+			env.SendMessage(env.AtAuthor() + " Only trusted users can trust others")
 			return
 		}
-		count, err := TrustedTimesOfUser(db, discordEnv.m.Author);
+		count, err := TrustedTimesOfUser(db, discordEnv.m.Author)
 		if err != nil {
 			log.Println("Could not get amount of trusted times:", err)
-			env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
 			return
 		}
 		if count > MaxTrustedTimes {
@@ -212,37 +213,37 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 		}
 	case "trust":
 		if db == nil {
-			env.SendMessage(env.AtAuthor()+" Something went wrong with the database. Commands that require it won't work. Please ask "+env.AtAdmin()+" to check the logs")
+			env.SendMessage(env.AtAuthor() + " Something went wrong with the database. Commands that require it won't work. Please ask " + env.AtAdmin() + " to check the logs")
 			return
 		}
 
 		discordEnv := env.AsDiscord()
 		if discordEnv == nil {
-			env.SendMessage(env.AtAuthor()+" This command only works in Discord, sorry")
+			env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
 			return
 		}
 
 		if !isMemberTrusted(discordEnv.m.Member) {
-			env.SendMessage(env.AtAuthor()+" Only trusted users can trust others")
+			env.SendMessage(env.AtAuthor() + " Only trusted users can trust others")
 			return
 		}
 
 		if len(discordEnv.m.Mentions) == 0 {
-			env.SendMessage(env.AtAuthor()+" Please ping the user you want to trust")
+			env.SendMessage(env.AtAuthor() + " Please ping the user you want to trust")
 			return
 		}
 
 		if len(discordEnv.m.Mentions) > 1 {
-			env.SendMessage(env.AtAuthor()+" You can't trust several people simultaneously")
+			env.SendMessage(env.AtAuthor() + " You can't trust several people simultaneously")
 			return
 		}
 
 		mention := discordEnv.m.Mentions[0]
 
-		count, err := TrustedTimesOfUser(db, discordEnv.m.Author);
+		count, err := TrustedTimesOfUser(db, discordEnv.m.Author)
 		if err != nil {
 			log.Println("Could not get amount of trusted times:", err)
-			env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
 			return
 		}
 		if count >= MaxTrustedTimes {
@@ -255,19 +256,19 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 		}
 
 		if mention.ID == discordEnv.m.Author.ID {
-			env.SendMessage(env.AtAuthor()+" On this server you can't trust yourself!")
+			env.SendMessage(env.AtAuthor() + " On this server you can't trust yourself!")
 			return
 		}
 
 		mentionMember, err := discordEnv.dg.GuildMember(discordEnv.m.GuildID, mention.ID)
 		if err != nil {
 			log.Printf("Could not get roles of user %s: %s\n", mention.ID, err)
-			env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
 			return
 		}
 
 		if isMemberTrusted(mentionMember) {
-			env.SendMessage(env.AtAuthor()+" That member is already trusted")
+			env.SendMessage(env.AtAuthor() + " That member is already trusted")
 			return
 		}
 
@@ -275,22 +276,22 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 		// TODO: add record to trusted users table
 		_, err = db.Exec("INSERT INTO TrustLog (trusterId, trusteeId) VALUES ($1, $2);", discordEnv.m.Author.ID, mention.ID)
 		if err != nil {
-			log.Printf("Could not save a TrustLog entry: %s\n", err);
-			env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
+			log.Printf("Could not save a TrustLog entry: %s\n", err)
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
 			return
 		}
 
 		err = discordEnv.dg.GuildMemberRoleAdd(discordEnv.m.GuildID, mention.ID, TrustedRoleId)
 		if err != nil {
 			log.Printf("Could not assign role %s to user %s: %s\n", TrustedRoleId, mention.ID, err)
-			env.SendMessage(env.AtAuthor()+" Something went wrong. Please ask "+env.AtAdmin()+" to check the logs")
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
 			return
 		}
 
 		env.SendMessage(fmt.Sprintf("%s Trusted %s. Used %d out of %d trusts.", env.AtAuthor(), AtUser(mention), count+1, MaxTrustedTimes))
 	case "mine":
 		if env.AsDiscord() == nil {
-			env.SendMessage(env.AtAuthor()+" This command only works in Discord, sorry")
+			env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
 			return
 		}
 
@@ -303,15 +304,15 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 		}
 
 		r := rand.New(seedAsSource(seed))
-		env.SendMessage(renderMinesweeperFieldForDiscord(randomMinesweeperField(r), seed));
+		env.SendMessage(renderMinesweeperFieldForDiscord(randomMinesweeperField(r), seed))
 	case "mineopen":
 		if env.AsDiscord() == nil {
-			env.SendMessage(env.AtAuthor()+" This command only works in Discord, sorry")
+			env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
 			return
 		}
 
 		if len(command.Args) == 0 {
-			env.SendMessage(env.AtAuthor()+" please provide the seed")
+			env.SendMessage(env.AtAuthor() + " please provide the seed")
 			return
 		}
 
@@ -331,18 +332,18 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 }
 
 var (
-	PlaceNotFound = errors.New("PlaceNotFound")
+	PlaceNotFound               = errors.New("PlaceNotFound")
 	SomebodyTryingToHackWeather = errors.New("SomebodyTryingToHackWeather")
 )
 
 func checkWeatherOf(place string) (string, error) {
-	res, err := http.Get("https://wttr.in/"+url.PathEscape(place)+"?format=4")
+	res, err := http.Get("https://wttr.in/" + url.PathEscape(place) + "?format=4")
 	if err != nil {
 		return "", err
 	}
 	defer res.Body.Close()
 
-	body, err := ioutil.ReadAll(res.Body);
+	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return "", err
 	}

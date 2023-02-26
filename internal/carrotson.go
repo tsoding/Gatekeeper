@@ -2,8 +2,9 @@ package internal
 
 import (
 	"database/sql"
-	"log"
 	"errors"
+	"log"
+	"math"
 )
 
 const ContextSize = 8
@@ -14,21 +15,22 @@ type Path struct {
 }
 
 func splitMessageIntoPaths(message []rune) (branches []Path) {
-	for i := -ContextSize; i + ContextSize < len(message); i += 1 {
+	for i := -ContextSize; i+ContextSize < len(message); i += 1 {
 		j := i
 		if j < 0 {
 			j = 0
 		}
 		branches = append(branches, Path{
-			context: message[j:i + ContextSize],
-			follows: message[i + ContextSize],
+			context: message[j : i+ContextSize],
+			follows: message[i+ContextSize],
 		})
 	}
 	return
 }
 
 type Branch struct {
-	Follows rune
+	Context   []rune
+	Follows   rune
 	Frequency int64
 }
 
@@ -36,8 +38,30 @@ var (
 	EmptyFollowsError = errors.New("Empty follows of a Carrotson branch")
 )
 
-func QueryRandomBranchFromContext(db *sql.DB, context []rune) (*Branch, error) {
-	row := db.QueryRow("SELECT follows, frequency FROM Carrotson_Branches WHERE context = $1 AND frequency > 0 ORDER BY random() LIMIT 1", string(context))
+func QueryRandomBranchFromUnfinishedContext(db *sql.DB, context []rune) (*Branch, error) {
+	row := db.QueryRow("SELECT context, follows, frequency FROM Carrotson_Branches WHERE starts_with(context, $1) AND frequency > 0 ORDER BY random() LIMIT 1", string(context))
+	var fullContext string
+	var follows string
+	var frequency int64
+	err := row.Scan(&fullContext, &follows, &frequency)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if len(follows) == 0 {
+		return nil, EmptyFollowsError
+	}
+	return &Branch{
+		Context:   []rune(fullContext),
+		Follows:   []rune(follows)[0],
+		Frequency: frequency,
+	}, nil
+}
+
+func QueryRandomBranchFromContext(db *sql.DB, context []rune, t float64) (*Branch, error) {
+	row := db.QueryRow("select follows, frequency from (select * from carrotson_branches where context = $1 AND frequency > 0 order by frequency desc limit CEIL((select count(*) from carrotson_branches where context = $1 AND frequency > 0)*1.0*$2)) as c order by random() limit 1", string(context), t)
 	var follows string
 	var frequency int64
 	err := row.Scan(&follows, &frequency)
@@ -51,7 +75,8 @@ func QueryRandomBranchFromContext(db *sql.DB, context []rune) (*Branch, error) {
 		return nil, EmptyFollowsError
 	}
 	return &Branch{
-		Follows: []rune(follows)[0],
+		Context:   context,
+		Follows:   []rune(follows)[0],
 		Frequency: frequency,
 	}, nil
 }
@@ -88,11 +113,21 @@ func ContextOfMessage(message []rune) []rune {
 
 func CarrotsonGenerate(db *sql.DB, prefix string, limit int) (string, error) {
 	var err error = nil
+	var branch *Branch
 	message := []rune(prefix)
-	branch, err := QueryRandomBranchFromContext(db, ContextOfMessage(message))
+	t := float64(len(message)) / float64(limit)
+	if len(message) >= ContextSize || len(message) == 0 {
+		branch, err = QueryRandomBranchFromContext(db, ContextOfMessage(message), (math.Cos(t*math.Pi*1.5)+1.0)/2.0)
+	} else {
+		branch, err = QueryRandomBranchFromUnfinishedContext(db, ContextOfMessage(message))
+		if err == nil && branch != nil {
+			message = branch.Context
+		}
+	}
 	for err == nil && branch != nil && len(message) < limit {
 		message = append(message, branch.Follows)
-		branch, err = QueryRandomBranchFromContext(db, ContextOfMessage(message))
+		t = float64(len(message)) / float64(limit)
+		branch, err = QueryRandomBranchFromContext(db, ContextOfMessage(message), (math.Cos(t*math.Pi*1.5)+1.0)/2.0)
 	}
 	return string(message), err
 }
