@@ -122,6 +122,12 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 		env.SendMessage(env.AtAuthor() + " pong")
 	// TODO: uncarrot discord message by its id
 	case "carrot":
+		// TODO: consider enabling $carrot on Twitch?
+		if env.AsDiscord() == nil {
+			env.SendMessage(env.AtAuthor() + " This command is only available in Discord for now.");
+			return
+		}
+
 		if db == nil {
 			// TODO: add some sort of cooldown for the @admin pings
 			env.SendMessage(env.AtAuthor() + " Something went wrong with the database. Commands that require it won't work. Please ask " + env.AtAdmin() + " to check the logs")
@@ -183,6 +189,10 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 	case "version":
 		env.SendMessage(env.AtAuthor() + " " + Commit)
 	case "untrust":
+		if env.AsDiscord() == nil {
+			env.SendMessage(env.AtAuthor() + " This command is only available in Discord for now.");
+			return
+		}
 		env.SendMessage(env.AtAuthor() + " what is done is done ( -_-)")
 	case "count":
 		if db == nil {
@@ -320,11 +330,24 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 		r := rand.New(seedAsSource(seed))
 		env.SendMessage(renderOpenMinesweeperFieldForDiscord(randomMinesweeperField(r), seed))
 	case "code":
+		if env.AsDiscord() == nil {
+			env.SendMessage(env.AtAuthor() + " This command is only available in Discord for now.");
+			return
+		}
 		env.SendMessage(fmt.Sprintf("%s `%s`", env.AtAuthor(), command.Args))
 	case "ignore":
 	case "when":
-		env.SendMessage(fmt.Sprintf("%s %s is tomorrow <:POGGERS:543420632474451988>", env.AtAuthor(), command.Args))
+		// TODO: different emotes depending on the environment?
+		if env.AsDiscord() == nil {
+			env.SendMessage(fmt.Sprintf("%s %s is tomorrow POGGERS", env.AtAuthor(), command.Args))
+		} else {
+			env.SendMessage(fmt.Sprintf("%s %s is tomorrow <:POGGERS:543420632474451988>", env.AtAuthor(), command.Args))
+		}
 	case "redirect":
+		if env.AsDiscord() == nil {
+			env.SendMessage(env.AtAuthor() + " This command is only available in Discord for now.");
+			return
+		}
 		env.SendMessage(fmt.Sprintf("<:tsodinHmpf:908286361025519676> 👉 %s", command.Args))
 	default:
 		env.SendMessage(fmt.Sprintf("%s command `%s` does not exist", env.AtAuthor(), command.Name))
