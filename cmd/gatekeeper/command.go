@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	CommandPrefix = "\\$"
+	CommandPrefix = "[\\$\\!]"
 	CommandRegexp = regexp.MustCompile("^ *" + CommandPrefix + " *([a-zA-Z0-9\\-_]+)( +(.*))?$")
 	Commit        = func() string {
 		if info, ok := debug.ReadBuildInfo(); ok {
@@ -204,7 +204,7 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 				log.Println("Error while checking the weather for `"+place+"`:", err)
 			}
 		} else {
-			response = "No place is provided for " + CommandPrefix + "weather"
+			response = "No place is provided for the weather command"
 		}
 
 		env.SendMessage(env.AtAuthor() + " " + response)
