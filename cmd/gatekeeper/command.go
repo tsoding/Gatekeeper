@@ -119,6 +119,8 @@ var CyrilMap = map[rune]rune{
 
 func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 	switch command.Name {
+	case "ded":
+		env.SendMessage(env.AtAuthor() + " Ded is a Dramatic EDitor that we are developing in here. It's cool and dramatic. And it's gonna replace Vim, Emacs, VSCode and urmom. You can find its source code on GitHub: https://github.com/tsoding/ded")
 	case "today":
 		if len(command.Args) > 0 {
 			env.SendMessage(command.Args + " " + Today)
