@@ -109,7 +109,7 @@ func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.Messag
 		dg: dg,
 		m: m,
 	}
-	EvalCommand(db, command, env, EvalContextFromCommandEnvironment(env, command));
+	EvalCommand(db, command, env);
 }
 
 var (

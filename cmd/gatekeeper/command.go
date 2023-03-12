@@ -228,7 +228,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			return
 		}
 		start := time.Now()
-		EvalCommand(db, innerCommand, env, context)
+		EvalCommand(db, innerCommand, env)
 		elapsed := time.Since(start)
 		env.SendMessage(env.AtAuthor() + " `" + command.Args + "` took " + elapsed.String() + " to executed")
 	case "cyril":
@@ -238,7 +238,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		} else {
 			EvalCommand(db, innerCommand, &CyrillifyEnvironment{
 				InnerEnv: env,
-			}, context)
+			})
 		}
 	case "weather":
 		place := command.Args
@@ -428,7 +428,8 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 	}
 }
 
-func EvalCommand(db *sql.DB, command Command, env CommandEnvironment, context EvalContext) {
+func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
+	context := EvalContextFromCommandEnvironment(env, command)
 	row := db.QueryRow("SELECT bex FROM commands WHERE name = $1", command.Name);
 	var bex string
 	err := row.Scan(&bex)

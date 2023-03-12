@@ -236,7 +236,7 @@ func startTwitch(db *sql.DB) (*TwitchConn, bool) {
 							Channel: TwitchIrcChannel,
 						}
 
-						EvalCommand(db, command, env, EvalContextFromCommandEnvironment(env, command));
+						EvalCommand(db, command, env);
 					}
 				}
 			default: panic("unreachable")
