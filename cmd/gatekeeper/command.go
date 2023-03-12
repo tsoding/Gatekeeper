@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"runtime/debug"
 	"time"
+	"strings"
+	"strconv"
 )
 
 var (
@@ -115,6 +117,52 @@ var CyrilMap = map[rune]rune{
 	'W': 'Ш',
 	'X': 'Ж',
 	'Y': 'У',
+}
+
+func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) EvalContext {
+	return EvalContext{
+		Scopes: []EvalScope{
+			EvalScope{
+				Vars: map[string]Expr{
+					"author": Expr{
+						Type: ExprStr,
+						AsStr: env.AtAuthor(),
+					},
+					"year": Expr{
+						Type: ExprInt,
+						// TODO: unhardcode the year
+						AsInt: 2023,
+					},
+					"arg0": Expr{
+						Type: ExprStr,
+						AsStr: command.Args,
+					},
+				},
+				Funcs: map[string]Func{
+					"say": func(context *EvalContext, args []Expr) (Expr, error) {
+						sb := strings.Builder{}
+						for _, arg := range args {
+							result, err := context.EvalExpr(arg)
+							if err != nil {
+								return Expr{}, err
+							}
+
+							switch result.Type {
+							case ExprInt:
+								sb.WriteString(strconv.Itoa(result.AsInt))
+							case ExprStr:
+								sb.WriteString(result.AsStr);
+							default:
+								return Expr{}, fmt.Errorf("%s evaluated into %s which is neither Int nor Str. `say` command cannot display that.", arg.String(), result.String());
+							}
+						}
+						env.SendMessage(sb.String())
+						return Expr{}, nil
+					},
+				},
+			},
+		},
+	}
 }
 
 func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, context EvalContext) {
