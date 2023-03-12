@@ -120,6 +120,11 @@ var CyrilMap = map[rune]rune{
 }
 
 func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) EvalContext {
+	kek := "KEKW"
+	if env.AsDiscord() != nil {
+		kek = "<:KEKW:826376132910907402>"
+	}
+
 	return EvalContext{
 		Scopes: []EvalScope{
 			EvalScope{
@@ -136,6 +141,10 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 					"arg0": Expr{
 						Type: ExprStr,
 						AsStr: command.Args,
+					},
+					"kek": Expr{
+						Type: ExprStr,
+						AsStr: kek,
 					},
 				},
 				Funcs: map[string]Func{
