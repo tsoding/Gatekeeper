@@ -117,7 +117,7 @@ var CyrilMap = map[rune]rune{
 	'Y': 'У',
 }
 
-func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
+func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, context EvalContext) {
 	switch command.Name {
 	case "ded":
 		env.SendMessage(env.AtAuthor() + " Ded is a Dramatic EDitor that we are developing in here. It's cool and dramatic. And it's gonna replace Vim, Emacs, VSCode and urmom. You can find its source code on GitHub: https://github.com/tsoding/ded")
@@ -180,7 +180,7 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 			return
 		}
 		start := time.Now()
-		EvalCommand(db, innerCommand, env)
+		EvalCommand(db, innerCommand, env, context)
 		elapsed := time.Since(start)
 		env.SendMessage(env.AtAuthor() + " `" + command.Args + "` took " + elapsed.String() + " to executed")
 	case "cyril":
@@ -190,7 +190,7 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 		} else {
 			EvalCommand(db, innerCommand, &CyrillifyEnvironment{
 				InnerEnv: env,
-			})
+			}, context)
 		}
 	case "weather":
 		place := command.Args
@@ -377,6 +377,37 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 		env.SendMessage(fmt.Sprintf("<:tsodinHmpf:908286361025519676> 👉 %s", command.Args))
 	default:
 		env.SendMessage(fmt.Sprintf("%s command `%s` does not exist", env.AtAuthor(), command.Name))
+	}
+}
+
+func EvalCommand(db *sql.DB, command Command, env CommandEnvironment, context EvalContext) {
+	row := db.QueryRow("SELECT bex FROM commands WHERE name = $1", command.Name);
+	var bex string
+	err := row.Scan(&bex)
+	if err == sql.ErrNoRows {
+		EvalBuiltinCommand(db, command, env, context)
+		return
+	}
+	if err != nil {
+		env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+		log.Printf("Error while querying command %s: %s\n", command.Name, err);
+		return
+	}
+
+	exprs, err := ParseAllExprs(bex)
+	if err != nil {
+		env.SendMessage(env.AtAuthor() + " Mods did an oopsie-doopsie while defining this command. Ask " + env.AtAdmin() + " to check the logs");
+		log.Printf("Error while parsing \"%s\" command: %s", command.Name, err);
+		return
+	}
+
+	for _, expr := range exprs {
+		_, err := context.EvalExpr(expr)
+		if err != nil {
+			env.SendMessage(env.AtAuthor() + " Mods did an oopsie-doopsie while defining this command. Ask " + env.AtAdmin() + " to check the logs");
+			log.Printf("Error while evaluating \"%s\" command: %s", command.Name, err);
+			return
+		}
 	}
 }
 

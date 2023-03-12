@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"time"
 	"database/sql"
+	"strconv"
 	_"github.com/tsoding/gatekeeper/internal"
 )
 
@@ -113,6 +114,52 @@ func granum(amount int, singular string, plural string) string {
 		return fmt.Sprintf("1 %s", singular)
 	}
 	return fmt.Sprintf("%d %s", amount, plural)
+}
+
+func EvalContextFromTwitchEnvironment(env *TwitchEnvironment, command Command) EvalContext {
+	return EvalContext{
+		Scopes: []EvalScope{
+			EvalScope{
+				Vars: map[string]Expr{
+					"author": Expr{
+						Type: ExprStr,
+						AsStr: env.AtAuthor(),
+					},
+					"year": Expr{
+						Type: ExprInt,
+						// TODO: unhardcode the year
+						AsInt: 2023,
+					},
+					"arg0": Expr{
+						Type: ExprStr,
+						AsStr: command.Args,
+					},
+				},
+				Funcs: map[string]Func{
+					"say": func(context *EvalContext, args []Expr) (Expr, error) {
+						sb := strings.Builder{}
+						for _, arg := range args {
+							result, err := context.EvalExpr(arg)
+							if err != nil {
+								return Expr{}, err
+							}
+
+							switch result.Type {
+							case ExprInt:
+								sb.WriteString(strconv.Itoa(result.AsInt))
+							case ExprStr:
+								sb.WriteString(result.AsStr);
+							default:
+								return Expr{}, fmt.Errorf("%s evaluated into %s which is neither Int nor Str. `say` command cannot display that.", arg.String(), result.String());
+							}
+						}
+						env.SendMessage(sb.String())
+						return Expr{}, nil
+					},
+				},
+			},
+		},
+	}
 }
 
 func startTwitch(db *sql.DB) (*TwitchConn, bool) {
@@ -230,11 +277,13 @@ func startTwitch(db *sql.DB) (*TwitchConn, bool) {
 							continue
 						}
 
-						EvalCommand(db, command, &TwitchEnvironment{
+						env := &TwitchEnvironment{
 							AuthorHandle: msg.Nick(),
 							Conn: twitchConn.Conn,
 							Channel: TwitchIrcChannel,
-						})
+						}
+
+						EvalCommand(db, command, env, EvalContextFromTwitchEnvironment(env, command));
 					}
 				}
 			default: panic("unreachable")
