@@ -152,6 +152,24 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 						}
 						return NewExprStr(env.AtAuthor()), nil
 					},
+					"repeat": func(context *EvalContext, args []Expr) (Expr, error) {
+						if len(args) < 1 {
+							return Expr{}, fmt.Errorf("Expected at least one argument");
+						}
+						if args[0].Type != ExprInt {
+							return Expr{}, fmt.Errorf("First argument must be an integer");
+						}
+						n := args[0].AsInt
+						for i := 0; i < n; i += 1 {
+							for _, arg := range args[1:] {
+								_, err := context.EvalExpr(arg)
+								if err != nil {
+									return Expr{}, err
+								}
+							}
+						}
+						return Expr{}, nil
+					},
 					"or": func(context *EvalContext, args []Expr) (Expr, error) {
 						for _, arg := range args {
 							result, err := context.EvalExpr(arg)
@@ -202,6 +220,23 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 
 func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, context EvalContext) {
 	switch command.Name {
+	case "eval":
+		if !env.IsAuthorAdmin() {
+			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
+			return
+		}
+		exprs, err := ParseAllExprs(command.Args)
+		if err != nil {
+			env.SendMessage(fmt.Sprintf("%s could not parse Bex: %s", env.AtAuthor(), err))
+			return
+		}
+		for _, expr := range exprs {
+			_, err := context.EvalExpr(expr)
+			if err != nil {
+				env.SendMessage(fmt.Sprintf("%s could not evaluate Bex. Ask %s to check the logs", env.AtAuthor(), env.AtAdmin()))
+				return
+			}
+		}
 	case "ping":
 		env.SendMessage(env.AtAuthor() + " pong")
 	// TODO: uncarrot discord message by its id
