@@ -454,8 +454,6 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			return
 		}
 		env.SendMessage(fmt.Sprintf("%s `%s`", env.AtAuthor(), command.Args))
-	case "vanish":
-	case "ignore":
 	case "when":
 		// TODO: different emotes depending on the environment?
 		if env.AsDiscord() == nil {
