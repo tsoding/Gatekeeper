@@ -474,13 +474,6 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			return
 		}
 		env.SendMessage(fmt.Sprintf("%s `%s`", env.AtAuthor(), command.Args))
-	case "when":
-		// TODO: different emotes depending on the environment?
-		if env.AsDiscord() == nil {
-			env.SendMessage(fmt.Sprintf("%s %s is tomorrow POGGERS", env.AtAuthor(), command.Args))
-		} else {
-			env.SendMessage(fmt.Sprintf("%s %s is tomorrow <:POGGERS:543420632474451988>", env.AtAuthor(), command.Args))
-		}
 	case "redirect":
 		if env.AsDiscord() == nil {
 			env.SendMessage(env.AtAuthor() + " This command is only available in Discord for now.");
