@@ -125,7 +125,7 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 				Funcs: map[string]Func{
 					"kek": func(context *EvalContext, args []Expr) (Expr, error) {
 						if len(args) > 0 {
-							return Expr{}, fmt.Errorf("Too many arguments for author")
+							return Expr{}, fmt.Errorf("Too many arguments")
 						}
 						if env.AsDiscord() != nil {
 							return NewExprStr("<:KEKW:826376132910907402>"), nil
@@ -135,20 +135,20 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 					},
 					"arg0": func(context *EvalContext, args []Expr) (Expr, error) {
 						if len(args) > 0 {
-							return Expr{}, fmt.Errorf("Too many arguments for author")
+							return Expr{}, fmt.Errorf("Too many arguments")
 						}
 						return NewExprStr(command.Args), nil
 					},
 					"year": func(context *EvalContext, args []Expr) (Expr, error) {
 						if len(args) > 0 {
-							return Expr{}, fmt.Errorf("Too many arguments for author");
+							return Expr{}, fmt.Errorf("Too many arguments");
 						}
 						// TODO: unhardcode the year
 						return NewExprInt(2023), nil
 					},
 					"author": func(context *EvalContext, args []Expr) (Expr, error) {
 						if len(args) > 0 {
-							return Expr{}, fmt.Errorf("Too many arguments for author");
+							return Expr{}, fmt.Errorf("Too many arguments");
 						}
 						return NewExprStr(env.AtAuthor()), nil
 					},
@@ -211,6 +211,14 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 						}
 						env.SendMessage(sb.String())
 						return Expr{}, nil
+					},
+					"discord": func(context *EvalContext, args []Expr) (result Expr, err error) {
+						if env.AsDiscord() == nil {
+							env.SendMessage(env.AtAuthor() + " This command is only for discord, sorry")
+							return
+						}
+						result, err = context.EvalExprs(args)
+						return
 					},
 				},
 			},
@@ -305,12 +313,6 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		env.SendMessage(env.AtAuthor() + " " + response)
 	case "version":
 		env.SendMessage(env.AtAuthor() + " " + Commit)
-	case "untrust":
-		if env.AsDiscord() == nil {
-			env.SendMessage(env.AtAuthor() + " This command is only available in Discord for now.");
-			return
-		}
-		env.SendMessage(env.AtAuthor() + " what is done is done ( -_-)")
 	case "count":
 		if db == nil {
 			env.SendMessage(env.AtAuthor() + " Something went wrong with the database. Commands that require it won't work. Please ask " + env.AtAdmin() + " to check the logs")

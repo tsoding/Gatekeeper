@@ -233,3 +233,13 @@ func (context *EvalContext) EvalExpr(expr Expr) (Expr, error) {
 	}
 	panic("unreachable")
 }
+
+func (context *EvalContext) EvalExprs(exprs []Expr) (result Expr, err error) {
+	for _, expr := range exprs {
+		result, err = context.EvalExpr(expr)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
