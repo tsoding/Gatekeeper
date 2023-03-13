@@ -135,24 +135,6 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 						}
 						return
 					},
-					// TODO: obsolete kek (because we platform_switch)
-					"kek": func(context *EvalContext, args []Expr) (Expr, error) {
-						if len(args) > 0 {
-							return Expr{}, fmt.Errorf("Too many arguments")
-						}
-						if env.AsDiscord() != nil {
-							return NewExprStr("<:KEKW:826376132910907402>"), nil
-						} else {
-							return NewExprStr("KEKW"), nil
-						}
-					},
-					// TODO: obsolete arg0 (because we have input)
-					"arg0": func(context *EvalContext, args []Expr) (Expr, error) {
-						if len(args) > 0 {
-							return Expr{}, fmt.Errorf("Too many arguments")
-						}
-						return NewExprStr(command.Args), nil
-					},
 					"input": func(context *EvalContext, args []Expr) (Expr, error) {
 						if len(args) > 0 {
 							return Expr{}, fmt.Errorf("Too many arguments")
@@ -171,24 +153,6 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 							return Expr{}, fmt.Errorf("Too many arguments");
 						}
 						return NewExprStr(env.AtAuthor()), nil
-					},
-					"repeat": func(context *EvalContext, args []Expr) (Expr, error) {
-						if len(args) < 1 {
-							return Expr{}, fmt.Errorf("Expected at least one argument");
-						}
-						if args[0].Type != ExprInt {
-							return Expr{}, fmt.Errorf("First argument must be an integer");
-						}
-						n := args[0].AsInt
-						for i := 0; i < n; i += 1 {
-							for _, arg := range args[1:] {
-								_, err := context.EvalExpr(arg)
-								if err != nil {
-									return Expr{}, err
-								}
-							}
-						}
-						return Expr{}, nil
 					},
 					"or": func(context *EvalContext, args []Expr) (Expr, error) {
 						for _, arg := range args {
