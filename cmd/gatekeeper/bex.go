@@ -22,7 +22,7 @@ type Expr struct {
 	Type ExprType
 	AsInt int
 	AsStr string
-	AsFuncall *Funcall
+	AsFuncall Funcall
 }
 
 func NewExprStr(str string) Expr {
@@ -138,9 +138,7 @@ func parseExpr(sourceRunes []rune) ([]rune, Expr, error) {
 			sourceRunes = trimRunes(restRunes)
 
 			expr.Type = ExprFuncall
-			expr.AsFuncall = &Funcall{
-				Name: string(name),
-			}
+			expr.AsFuncall.Name = string(name)
 
 			if len(sourceRunes) > 0 && sourceRunes[0] == '(' {
 				for {
