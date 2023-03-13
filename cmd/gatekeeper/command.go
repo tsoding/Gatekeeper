@@ -123,6 +123,19 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 		Scopes: []EvalScope{
 			EvalScope{
 				Funcs: map[string]Func{
+					"twitch_or_discord": func(context *EvalContext, args []Expr) (result Expr, err error) {
+						if len(args) != 2 {
+							return Expr{}, fmt.Errorf("Expected 2 arguments")
+						}
+
+						if env.AsDiscord() == nil {
+							result, err = context.EvalExpr(args[0])
+						} else {
+							result, err = context.EvalExpr(args[1])
+						}
+						return
+					},
+					// TODO: obsolete kek (because we platform_switch)
 					"kek": func(context *EvalContext, args []Expr) (Expr, error) {
 						if len(args) > 0 {
 							return Expr{}, fmt.Errorf("Too many arguments")
@@ -133,7 +146,14 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 							return NewExprStr("KEKW"), nil
 						}
 					},
+					// TODO: obsolete arg0 (because we have input)
 					"arg0": func(context *EvalContext, args []Expr) (Expr, error) {
+						if len(args) > 0 {
+							return Expr{}, fmt.Errorf("Too many arguments")
+						}
+						return NewExprStr(command.Args), nil
+					},
+					"input": func(context *EvalContext, args []Expr) (Expr, error) {
 						if len(args) > 0 {
 							return Expr{}, fmt.Errorf("Too many arguments")
 						}
