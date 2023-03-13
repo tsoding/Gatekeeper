@@ -474,12 +474,6 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			return
 		}
 		env.SendMessage(fmt.Sprintf("%s `%s`", env.AtAuthor(), command.Args))
-	case "redirect":
-		if env.AsDiscord() == nil {
-			env.SendMessage(env.AtAuthor() + " This command is only available in Discord for now.");
-			return
-		}
-		env.SendMessage(fmt.Sprintf("<:tsodinHmpf:908286361025519676> 👉 %s", command.Args))
 	default:
 		env.SendMessage(fmt.Sprintf("%s command `%s` does not exist", env.AtAuthor(), command.Name))
 	}
