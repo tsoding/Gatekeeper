@@ -30,7 +30,6 @@ var (
 		}
 		return "<none>"
 	}()
-	Today = "Nothing was set for today"
 )
 
 type Command struct {
@@ -203,27 +202,6 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 
 func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, context EvalContext) {
 	switch command.Name {
-	case "today":
-		if len(command.Args) > 0 {
-			env.SendMessage(command.Args + " " + Today)
-		} else {
-			env.SendMessage(env.AtAuthor() + " " + Today)
-		}
-	case "todayset":
-		if !env.IsAuthorAdmin() {
-			if env.AsDiscord() == nil {
-				env.SendMessage(env.AtAuthor() + " Only Mr. Streamer decides what we are doing today Kappa")
-			} else {
-				env.SendMessage(env.AtAuthor() + " Only Mr. Streamer decides what we are doing today <:al:1076142471425294530>")
-			}
-			return
-		}
-		if len(command.Args) == 0 {
-			env.SendMessage(env.AtAuthor() + " ERROR: No argument was provided")
-			return
-		}
-		Today = command.Args
-		env.SendMessage(env.AtAuthor() + " Set today to: " + command.Args)
 	case "ping":
 		env.SendMessage(env.AtAuthor() + " pong")
 	// TODO: uncarrot discord message by its id
