@@ -15,7 +15,6 @@ const (
 	ExprVoid ExprType = iota
 	ExprInt
 	ExprStr
-	ExprVar
 	ExprFuncall
 )
 
@@ -23,8 +22,21 @@ type Expr struct {
 	Type ExprType
 	AsInt int
 	AsStr string
-	AsVar string
 	AsFuncall *Funcall
+}
+
+func NewExprStr(str string) Expr {
+	return Expr{
+		Type: ExprStr,
+		AsStr: str,
+	}
+}
+
+func NewExprInt(num int) Expr {
+	return Expr{
+		Type: ExprInt,
+		AsInt: num,
+	}
 }
 
 func (expr *Expr) Dump(level int) {
@@ -40,8 +52,6 @@ func (expr *Expr) Dump(level int) {
 	case ExprStr:
 		// TODO: Expr.Dump() does not escape strings
 		fmt.Printf("Str: \"%s\"\n", expr.AsStr);
-	case ExprVar:
-		fmt.Printf("Var: %s\n", expr.AsVar);
 	case ExprFuncall:
 		fmt.Printf("Funcall: %s\n", expr.AsFuncall.Name)
 		for _, arg := range expr.AsFuncall.Args {
@@ -57,7 +67,6 @@ func (expr *Expr) String() string {
 	case ExprInt: return fmt.Sprintf("%d", expr.AsInt)
 	// TODO: Expr.String() does not escape string
 	case ExprStr: return fmt.Sprintf("\"%s\"", expr.AsStr)
-	case ExprVar: return fmt.Sprintf("%s", expr.AsVar)
 	case ExprFuncall: return expr.AsFuncall.String()
 	}
 	panic("unreachable")
@@ -128,12 +137,12 @@ func parseExpr(sourceRunes []rune) ([]rune, Expr, error) {
 			})
 			sourceRunes = trimRunes(restRunes)
 
-			if len(sourceRunes) > 0 && sourceRunes[0] == '(' {
-				expr.Type = ExprFuncall
-				expr.AsFuncall = &Funcall{
-					Name: string(name),
-				}
+			expr.Type = ExprFuncall
+			expr.AsFuncall = &Funcall{
+				Name: string(name),
+			}
 
+			if len(sourceRunes) > 0 && sourceRunes[0] == '(' {
 				for {
 					sourceRunes = sourceRunes[1:]
 					restRunes, arg, err := parseExpr(sourceRunes)
@@ -153,12 +162,10 @@ func parseExpr(sourceRunes []rune) ([]rune, Expr, error) {
 					return sourceRunes, expr, errors.New("Expected )")
 				}
 
-				return sourceRunes[1:], expr, nil
-			} else {
-				expr.Type = ExprVar
-				expr.AsVar = string(name)
-				return sourceRunes, expr, nil
+				sourceRunes = sourceRunes[1:]
 			}
+
+			return sourceRunes, expr, nil
 		} else {
 			return sourceRunes, Expr{}, errors.New(fmt.Sprintf("Unexpected character %q", sourceRunes[0]))
 		}
@@ -184,25 +191,11 @@ func ParseAllExprs(source string) ([]Expr, error) {
 }
 
 type EvalScope struct {
-	Vars map[string]Expr
 	Funcs map[string]Func
 }
 
 type EvalContext struct {
 	Scopes []EvalScope
-}
-
-func (context *EvalContext) LookUpVar(name string) (Expr, bool) {
-	scopes := context.Scopes
-	for len(scopes) > 0 {
-		n := len(scopes)
-		varr, ok := scopes[n-1].Vars[name]
-		if ok {
-			return varr, true
-		}
-		scopes = scopes[:n-1]
-	}
-	return Expr{}, false
 }
 
 func (context *EvalContext) LookUpFunc(name string) (Func, bool) {
@@ -233,12 +226,6 @@ func (context *EvalContext) EvalExpr(expr Expr) (Expr, error) {
 	switch expr.Type {
 	case ExprVoid, ExprInt, ExprStr:
 		return expr, nil
-	case ExprVar:
-		val, ok := context.LookUpVar(expr.AsVar)
-		if !ok {
-			return Expr{}, errors.New(fmt.Sprintf("Unknown variable `%s`", expr.AsVar))
-		}
-		return context.EvalExpr(val)
 	case ExprFuncall:
 		fun, ok := context.LookUpFunc(expr.AsFuncall.Name)
 		if !ok {

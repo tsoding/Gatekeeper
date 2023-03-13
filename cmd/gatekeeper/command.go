@@ -120,34 +120,39 @@ var CyrilMap = map[rune]rune{
 }
 
 func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) EvalContext {
-	kek := "KEKW"
-	if env.AsDiscord() != nil {
-		kek = "<:KEKW:826376132910907402>"
-	}
-
 	return EvalContext{
 		Scopes: []EvalScope{
 			EvalScope{
-				Vars: map[string]Expr{
-					"author": Expr{
-						Type: ExprStr,
-						AsStr: env.AtAuthor(),
-					},
-					"year": Expr{
-						Type: ExprInt,
-						// TODO: unhardcode the year
-						AsInt: 2023,
-					},
-					"arg0": Expr{
-						Type: ExprStr,
-						AsStr: command.Args,
-					},
-					"kek": Expr{
-						Type: ExprStr,
-						AsStr: kek,
-					},
-				},
 				Funcs: map[string]Func{
+					"kek": func(context *EvalContext, args []Expr) (Expr, error) {
+						if len(args) > 0 {
+							return Expr{}, fmt.Errorf("Too many arguments for author")
+						}
+						if env.AsDiscord() != nil {
+							return NewExprStr("<:KEKW:826376132910907402>"), nil
+						} else {
+							return NewExprStr("KEKW"), nil
+						}
+					},
+					"arg0": func(context *EvalContext, args []Expr) (Expr, error) {
+						if len(args) > 0 {
+							return Expr{}, fmt.Errorf("Too many arguments for author")
+						}
+						return NewExprStr(command.Args), nil
+					},
+					"year": func(context *EvalContext, args []Expr) (Expr, error) {
+						if len(args) > 0 {
+							return Expr{}, fmt.Errorf("Too many arguments for author");
+						}
+						// TODO: unhardcode the year
+						return NewExprInt(2023), nil
+					},
+					"author": func(context *EvalContext, args []Expr) (Expr, error) {
+						if len(args) > 0 {
+							return Expr{}, fmt.Errorf("Too many arguments for author");
+						}
+						return NewExprStr(env.AtAuthor()), nil
+					},
 					"or": func(context *EvalContext, args []Expr) (Expr, error) {
 						for _, arg := range args {
 							result, err := context.EvalExpr(arg)
@@ -163,8 +168,6 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 								if len(result.AsStr) != 0 {
 									return result, nil
 								}
-							case ExprVar:
-								fallthrough
 							case ExprFuncall:
 								return result, nil
 							}
