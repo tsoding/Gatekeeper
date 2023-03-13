@@ -468,12 +468,6 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		seed := command.Args
 		r := rand.New(seedAsSource(seed))
 		env.SendMessage(renderOpenMinesweeperFieldForDiscord(randomMinesweeperField(r), seed))
-	case "code":
-		if env.AsDiscord() == nil {
-			env.SendMessage(env.AtAuthor() + " This command is only available in Discord for now.");
-			return
-		}
-		env.SendMessage(fmt.Sprintf("%s `%s`", env.AtAuthor(), command.Args))
 	default:
 		env.SendMessage(fmt.Sprintf("%s command `%s` does not exist", env.AtAuthor(), command.Name))
 	}
