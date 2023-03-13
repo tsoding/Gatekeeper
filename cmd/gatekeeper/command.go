@@ -237,8 +237,6 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 				return
 			}
 		}
-	case "ping":
-		env.SendMessage(env.AtAuthor() + " pong")
 	// TODO: uncarrot discord message by its id
 	case "carrot":
 		// TODO: consider enabling $carrot on Twitch?
