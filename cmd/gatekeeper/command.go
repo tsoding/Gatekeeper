@@ -231,12 +231,6 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		}
 	// TODO: uncarrot discord message by its id
 	case "carrot":
-		// TODO: consider enabling $carrot on Twitch?
-		if env.AsDiscord() == nil {
-			env.SendMessage(env.AtAuthor() + " This command is only available in Discord for now.");
-			return
-		}
-
 		if db == nil {
 			// TODO: add some sort of cooldown for the @admin pings
 			env.SendMessage(env.AtAuthor() + " Something went wrong with the database. Commands that require it won't work. Please ask " + env.AtAdmin() + " to check the logs")
