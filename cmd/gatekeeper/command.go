@@ -338,6 +338,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		} else {
 			env.SendMessage(fmt.Sprintf("%s Used %d out of %d trusts", env.AtAuthor(), count, MaxTrustedTimes))
 		}
+		/*
 	case "trust":
 		if db == nil {
 			env.SendMessage(env.AtAuthor() + " Something went wrong with the database. Commands that require it won't work. Please ask " + env.AtAdmin() + " to check the logs")
@@ -416,6 +417,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		}
 
 		env.SendMessage(fmt.Sprintf("%s Trusted %s. Used %d out of %d trusts.", env.AtAuthor(), AtUser(mention), count+1, MaxTrustedTimes))
+		*/
 	case "mine":
 		if env.AsDiscord() == nil {
 			env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
