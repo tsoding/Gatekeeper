@@ -92,10 +92,20 @@ func (env *DiscordEnvironment) SendMessage(message string) {
 	}
 }
 
+func logDiscordMessage(db *sql.DB, m *discordgo.MessageCreate) {
+	_, err := db.Exec("INSERT INTO Discord_Log (message_id, user_id, user_name, text) VALUES ($1, $2, $3, $4)", m.ID, m.Author.ID, m.Author.Username, m.Content);
+	if err != nil {
+		log.Println("ERROR: logDiscordMessage: could not insert element", m.Author.ID, m.Author.Username, m.Content, ":", err);
+		return
+	}
+}
+
 func handleDiscordMessage(db *sql.DB, dg *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Author.Bot {
 		return
 	}
+
+	logDiscordMessage(db, m);
 
 	command, ok := parseCommand(m.Content)
 	if !ok {
