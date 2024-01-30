@@ -232,6 +232,30 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 
 func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, context EvalContext) {
 	switch command.Name {
+	case "topspammers":
+		discordEnv := env.AsDiscord()
+		if discordEnv == nil {
+			env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
+			return
+		}
+		rows, err := db.Query("select user_name, count(text) as count from discord_log group by user_name order by count desc limit 10");
+		if err != nil {
+			log.Printf("%s\n", err)
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+			return
+		}
+		defer rows.Close()
+
+		sb := strings.Builder{}
+		for index := 1; rows.Next(); index += 1 {
+			var userName string
+			var count int
+			err := rows.Scan(&userName, &count)
+			if err != nil {
+				sb.WriteString(fmt.Sprintf("%d. %s (%d)\n", index, userName, count))
+			}
+		}
+		env.SendMessage(env.AtAuthor() + " Top Spammers:\n"+sb.String())
 	case "sus":
 		if !env.IsAuthorAdmin() {
 			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
@@ -259,7 +283,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 				sb.WriteString(s.User.Username)
 				sb.WriteString(" ")
 			}
-			env.SendMessage("There names are: "+sb.String());
+			env.SendMessage("Their names are: "+sb.String());
 		}
 	case "eval":
 		if !env.IsAuthorAdmin() {
