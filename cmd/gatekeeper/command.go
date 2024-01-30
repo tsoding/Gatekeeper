@@ -258,6 +258,39 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			}
 		}
 		env.SendMessage(env.AtAuthor() + " Top Spammers:\n"+sb.String())
+	case "actualban":
+		if !env.IsAuthorAdmin() {
+			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
+			return
+		}
+
+		discordEnv := env.AsDiscord()
+		if discordEnv == nil {
+			env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
+			return
+		}
+
+		prefix := command.Args
+		st, err := discordEnv.dg.GuildMembersSearch(discordEnv.m.GuildID, prefix, 1);
+		if err != nil {
+			log.Printf("%s\n", err)
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+			return
+		}
+
+		if len(st) == 0 {
+			env.SendMessage(env.AtAuthor() + " Could not find "+prefix);
+			return
+		}
+
+		err = discordEnv.dg.GuildBanCreate(discordEnv.m.GuildID, st[0].User.ID, 0)
+		if err != nil {
+			log.Printf("%s\n", err)
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+			return
+		}
+
+		env.SendMessage(env.AtAuthor() + " " + prefix + " is banned")
 	case "sus":
 		if !env.IsAuthorAdmin() {
 			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
