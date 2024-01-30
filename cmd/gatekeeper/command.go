@@ -289,15 +289,17 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		}
 
 		for i := range st {
-			// err = discordEnv.dg.GuildBanCreate(discordEnv.m.GuildID, st[i].User.ID, 0)
-			// if err != nil {
-			// 	log.Printf("%s\n", err)
-			// 	env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
-			// 	return
-			// }
+			err = discordEnv.dg.GuildBanCreate(discordEnv.m.GuildID, st[i].User.ID, 0)
+			if err != nil {
+				log.Printf("%s\n", err)
+				env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+				return
+			}
 
 			env.SendMessage(env.AtAuthor() + " " + st[i].User.Username + " is banned (actually not, this is just a test)")
 		}
+
+		env.SendMessage(env.AtAuthor() + " Done 🙂")
 	case "search":
 		if !env.IsAuthorAdmin() {
 			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
@@ -319,7 +321,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		}
 
 		env.SendMessage(env.AtAuthor() + " There are "+strconv.Itoa(len(st))+" members that start with "+prefix);
-		if len(st) <= 100 {
+		if 0 < len(st) && len(st) <= 100 {
 			sb := strings.Builder{}
 			for _, s := range st {
 				sb.WriteString(s.User.Username)
