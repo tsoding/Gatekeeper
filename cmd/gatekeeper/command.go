@@ -252,7 +252,14 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			return
 		}
 
-		env.SendMessage(env.AtAuthor() + " There are "+strconv.Itoa(len(st))+" memebers that start with "+prefix);
+		env.SendMessage(env.AtAuthor() + " There are "+strconv.Itoa(len(st))+" members that start with "+prefix);
+		if len(st) <= 100 {
+			sb := strings.Builder{}
+			for _, s := range st {
+				sb.WriteString(s.User.Username)
+				sb.WriteString(" ")
+			}
+		}
 	case "eval":
 		if !env.IsAuthorAdmin() {
 			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
