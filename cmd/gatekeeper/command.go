@@ -277,28 +277,26 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			return
 		}
 
-		for {
-			st, err := discordEnv.dg.GuildMembersSearch(discordEnv.m.GuildID, prefix, 1000);
-			if err != nil {
-				log.Printf("%s\n", err)
-				env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
-				return
-			}
+		st, err := discordEnv.dg.GuildMembersSearch(discordEnv.m.GuildID, prefix, 1000);
+		if err != nil {
+			log.Printf("%s\n", err)
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+			return
+		}
 
-			if len(st) == 0 {
-				break
-			}
+		if len(st) == 0 {
+			break
+		}
 
-			for i := range st {
-				// err = discordEnv.dg.GuildBanCreate(discordEnv.m.GuildID, st[i].User.ID, 0)
-				// if err != nil {
-				// 	log.Printf("%s\n", err)
-				// 	env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
-				// 	return
-				// }
+		for i := range st {
+			// err = discordEnv.dg.GuildBanCreate(discordEnv.m.GuildID, st[i].User.ID, 0)
+			// if err != nil {
+			// 	log.Printf("%s\n", err)
+			// 	env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+			// 	return
+			// }
 
-				env.SendMessage(env.AtAuthor() + " " + st[i].User.Username + " is banned (actually not, this is just a test)")
-			}
+			env.SendMessage(env.AtAuthor() + " " + st[i].User.Username + " is banned (actually not, this is just a test)")
 		}
 	case "search":
 		if !env.IsAuthorAdmin() {
