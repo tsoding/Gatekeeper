@@ -259,6 +259,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 				sb.WriteString(s.User.Username)
 				sb.WriteString(" ")
 			}
+			env.SendMessage("There names are: "+sb.String());
 		}
 	case "eval":
 		if !env.IsAuthorAdmin() {
