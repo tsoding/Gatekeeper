@@ -252,6 +252,8 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			var count int
 			err := rows.Scan(&userName, &count)
 			if err != nil {
+				log.Printf("%s\n", err)
+			} else {
 				sb.WriteString(fmt.Sprintf("%d. %s (%d)\n", index, userName, count))
 			}
 		}
