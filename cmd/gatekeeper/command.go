@@ -296,7 +296,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 				return
 			}
 
-			env.SendMessage(env.AtAuthor() + " " + st[i].User.Username + " is banned (actually not, this is just a test)")
+			env.SendMessage(env.AtAuthor() + " " + st[i].User.Username + " is banned")
 		}
 
 		env.SendMessage(env.AtAuthor() + " Done 🙂")
