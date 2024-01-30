@@ -291,7 +291,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		}
 
 		env.SendMessage(env.AtAuthor() + " " + prefix + " is banned")
-	case "sus":
+	case "search":
 		if !env.IsAuthorAdmin() {
 			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
 			return
