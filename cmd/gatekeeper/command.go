@@ -232,6 +232,27 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 
 func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, context EvalContext) {
 	switch command.Name {
+	case "sus":
+		if !env.IsAuthorAdmin() {
+			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
+			return
+		}
+
+		discordEnv := env.AsDiscord()
+		if discordEnv == nil {
+			env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
+			return
+		}
+
+		prefix := command.Args
+		st, err := discordEnv.dg.GuildMembersSearch(discordEnv.m.GuildID, prefix, 1000);
+		if err != nil {
+			log.Printf("%s\n", err)
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+			return
+		}
+
+		env.SendMessage(env.AtAuthor() + " There are "+strconv.Itoa(len(st))+" memebers that start with "+prefix);
 	case "eval":
 		if !env.IsAuthorAdmin() {
 			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
