@@ -270,27 +270,36 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			return
 		}
 
-		prefix := command.Args
-		st, err := discordEnv.dg.GuildMembersSearch(discordEnv.m.GuildID, prefix, 1);
-		if err != nil {
-			log.Printf("%s\n", err)
-			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+		prefix := strings.TrimSpace(command.Args)
+
+		if len(prefix) == 0 {
+			env.SendMessage(env.AtAuthor() + " Prefix cannot be empty")
 			return
 		}
 
-		if len(st) == 0 {
-			env.SendMessage(env.AtAuthor() + " Could not find "+prefix);
-			return
-		}
+		for {
+			st, err := discordEnv.dg.GuildMembersSearch(discordEnv.m.GuildID, prefix, 1000);
+			if err != nil {
+				log.Printf("%s\n", err)
+				env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+				return
+			}
 
-		err = discordEnv.dg.GuildBanCreate(discordEnv.m.GuildID, st[0].User.ID, 0)
-		if err != nil {
-			log.Printf("%s\n", err)
-			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
-			return
-		}
+			if len(st) == 0 {
+				break
+			}
 
-		env.SendMessage(env.AtAuthor() + " " + prefix + " is banned")
+			for i := range st {
+				// err = discordEnv.dg.GuildBanCreate(discordEnv.m.GuildID, st[i].User.ID, 0)
+				// if err != nil {
+				// 	log.Printf("%s\n", err)
+				// 	env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+				// 	return
+				// }
+
+				env.SendMessage(env.AtAuthor() + " " + st[i].User.Username + " is banned (actually not, this is just a test)")
+			}
+		}
 	case "search":
 		if !env.IsAuthorAdmin() {
 			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
