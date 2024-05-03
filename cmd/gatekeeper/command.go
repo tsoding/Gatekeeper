@@ -263,7 +263,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			}
 			env.SendMessage(env.AtAuthor() + " Top Spammers:\n"+sb.String())
 		} else {
-			rows, err := db.Query("select user_name, count(text) as count from discord_log where user_name = $1", name);
+			rows, err := db.Query("select user_name, count(text) as count from discord_log where user_name = $1 group by user_name;", name);
 			if err != nil {
 				log.Printf("%s\n", err)
 				env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
