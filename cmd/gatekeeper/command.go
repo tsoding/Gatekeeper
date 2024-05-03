@@ -238,26 +238,52 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
 			return
 		}
-		rows, err := db.Query("select user_name, count(text) as count from discord_log group by user_name order by count desc limit 10");
-		if err != nil {
-			log.Printf("%s\n", err)
-			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
-			return
-		}
-		defer rows.Close()
 
-		sb := strings.Builder{}
-		for index := 1; rows.Next(); index += 1 {
-			var userName string
-			var count int
-			err := rows.Scan(&userName, &count)
+		name := strings.TrimSpace(command.Args)
+
+		if len(name) == 0 {
+			rows, err := db.Query("select user_name, count(text) as count from discord_log group by user_name order by count desc limit 10");
 			if err != nil {
 				log.Printf("%s\n", err)
-			} else {
-				sb.WriteString(fmt.Sprintf("%d. %s (%d)\n", index, userName, count))
+				env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+				return
 			}
+			defer rows.Close()
+
+			sb := strings.Builder{}
+			for index := 1; rows.Next(); index += 1 {
+				var userName string
+				var count int
+				err := rows.Scan(&userName, &count)
+				if err != nil {
+					log.Printf("%s\n", err)
+				} else {
+					sb.WriteString(fmt.Sprintf("%d. %s (%d)\n", index, userName, count))
+				}
+			}
+			env.SendMessage(env.AtAuthor() + " Top Spammers:\n"+sb.String())
+		} else {
+			rows, err := db.Query("select user_name, count(text) as count from discord_log where user_name = $1", name);
+			if err != nil {
+				log.Printf("%s\n", err)
+				env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+				return
+			}
+			defer rows.Close()
+
+			sb := strings.Builder{}
+			for rows.Next() {
+				var userName string
+				var count int
+				err := rows.Scan(&userName, &count)
+				if err != nil {
+					log.Printf("%s\n", err)
+				} else {
+					sb.WriteString(fmt.Sprintf("%s (%d)\n", userName, count))
+				}
+			}
+			env.SendMessage(env.AtAuthor() + " " + sb.String())
 		}
-		env.SendMessage(env.AtAuthor() + " Top Spammers:\n"+sb.String())
 	case "actualban":
 		if !env.IsAuthorAdmin() {
 			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
