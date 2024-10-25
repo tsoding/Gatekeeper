@@ -15,6 +15,7 @@ import (
 	"time"
 	"strings"
 	"strconv"
+	"math"
 )
 
 var (
@@ -123,6 +124,23 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 		Scopes: []EvalScope{
 			EvalScope{
 				Funcs: map[string]Func{
+					"days_left_until": func(context *EvalContext, args []Expr) (Expr, error) {
+						if len(args) != 1 {
+							return Expr{}, fmt.Errorf("Expected 2 arguments")
+						}
+						result, err := context.EvalExpr(args[0])
+						if err != nil {
+							return Expr{}, err
+						}
+						if result.Type != ExprStr {
+							return Expr{}, fmt.Errorf("%s is not a String", result.String())
+						}
+						date, err := time.Parse("2006-01-02", result.AsStr)
+						if err != nil {
+							return Expr{}, err
+						}
+						return NewExprInt(int(math.Floor(date.Sub(time.Now()).Hours()/24))), nil
+					},
 					"twitch_or_discord": func(context *EvalContext, args []Expr) (result Expr, err error) {
 						if len(args) != 2 {
 							return Expr{}, fmt.Errorf("Expected 2 arguments")
