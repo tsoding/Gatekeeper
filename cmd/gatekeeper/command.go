@@ -126,7 +126,7 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 				Funcs: map[string]Func{
 					"days_left_until": func(context *EvalContext, args []Expr) (Expr, error) {
 						if len(args) != 1 {
-							return Expr{}, fmt.Errorf("Expected 2 arguments")
+							return Expr{}, fmt.Errorf("Expected 1 arguments")
 						}
 						result, err := context.EvalExpr(args[0])
 						if err != nil {
