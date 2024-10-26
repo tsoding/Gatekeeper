@@ -163,8 +163,7 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 						if len(args) > 0 {
 							return Expr{}, fmt.Errorf("Too many arguments");
 						}
-						// TODO: unhardcode the year
-						return NewExprInt(2023), nil
+						return NewExprInt(time.Now().Year()), nil
 					},
 					"author": func(context *EvalContext, args []Expr) (Expr, error) {
 						if len(args) > 0 {
