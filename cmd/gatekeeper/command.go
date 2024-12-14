@@ -281,8 +281,8 @@ func (ed *EdState) Huh(env CommandEnvironment) {
 }
 
 const (
-	EdLineCountLimit = 3
-	EdLineSizeLimit = 10
+	EdLineCountLimit = 5
+	EdLineSizeLimit = 100
 )
 
 func (ed *EdState) ExecCommand(env CommandEnvironment, command string) {
