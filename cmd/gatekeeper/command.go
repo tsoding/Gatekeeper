@@ -19,6 +19,7 @@ import (
 )
 
 var (
+	// TODO: make the CommandPrefix configurable from the database, so we can set it per instance
 	CommandPrefix = "[\\$\\!]"
 	CommandRegexp = regexp.MustCompile("^ *" + CommandPrefix + " *([a-zA-Z0-9\\-_]+)( +(.*))?$")
 	Commit        = func() string {
