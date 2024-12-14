@@ -491,6 +491,9 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 	case "edcount":
 		env.SendMessage(fmt.Sprintf("%s There are currently %d Ed states", env.AtAuthor(), len(Eds)));
 		return;
+	case "edlimit":
+		env.SendMessage(fmt.Sprintf("%s Line Count: %d, Line Size: %d", env.AtAuthor(), EdLineCountLimit, EdLineSizeLimit))
+		return;
 	case "ed":
 		ed, ok := Eds[env.AtAuthor()];
 		if !ok {
