@@ -16,12 +16,13 @@ import (
 	"strings"
 	"strconv"
 	"math"
+	"slices"
 )
 
 var (
 	// TODO: make the CommandPrefix configurable from the database, so we can set it per instance
-	CommandPrefix = "[\\$\\!]"
-	CommandRegexp = regexp.MustCompile("^ *" + CommandPrefix + " *([a-zA-Z0-9\\-_]+)( +(.*))?$")
+	CommandPrefix = "[\\$\\!\\^]"
+	CommandRegexp = regexp.MustCompile("^ *(" + CommandPrefix + ") *([a-zA-Z0-9\\-_]+)( +(.*))?$")
 	Commit        = func() string {
 		if info, ok := debug.ReadBuildInfo(); ok {
 			for _, setting := range info.Settings {
@@ -35,6 +36,7 @@ var (
 )
 
 type Command struct {
+	Prefix string
 	Name string
 	Args string
 }
@@ -45,8 +47,9 @@ func parseCommand(source string) (Command, bool) {
 		return Command{}, false
 	}
 	return Command{
-		Name: matches[1],
-		Args: matches[3],
+		Prefix: matches[1],
+		Name:   matches[2],
+		Args:   matches[4],
 	}, true
 }
 
@@ -248,6 +251,118 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 	}
 }
 
+type EdMode int
+
+const (
+	EdCommandMode EdMode = iota
+	EdInsertMode
+)
+
+type EdState struct {
+	Buffer []string
+	Cursor int
+	Mode EdMode
+}
+
+func (ed *EdState) Print(env CommandEnvironment, line string) {
+	env.SendMessage(env.AtAuthor()+" "+line);
+}
+
+func (ed *EdState) LineAt(index int) (string, bool) {
+	if 0 <= index && index < len(ed.Buffer) {
+		return ed.Buffer[index], true
+	} else {
+		return "", false
+	}
+}
+
+func (ed *EdState) Huh(env CommandEnvironment) {
+	env.SendMessage(env.AtAuthor()+" ?")
+}
+
+const (
+	EdLineCountLimit = 3
+	EdLineSizeLimit = 10
+)
+
+func (ed *EdState) ExecCommand(env CommandEnvironment, command string) {
+	switch ed.Mode {
+	case EdCommandMode:
+		switch command {
+		case "":
+			newCursor := ed.Cursor + 1
+			if line, ok := ed.LineAt(newCursor); ok {
+				ed.Cursor = newCursor
+				ed.Print(env, line)
+			} else {
+				ed.Huh(env)
+			}
+		case "a":
+			ed.Mode = EdInsertMode
+		case "d":
+			if _, ok := ed.LineAt(ed.Cursor); ok {
+				ed.Buffer = slices.Delete(ed.Buffer, ed.Cursor, ed.Cursor+1)
+				if ed.Cursor >= len(ed.Buffer) { // Cursor overflew after deleting last line
+					ed.Cursor -= 1
+				}
+			} else {
+				ed.Huh(env)
+			}
+		case ",p":
+			if len(ed.Buffer) > 0 {
+				for _, line := range(ed.Buffer) {
+					ed.Print(env, line)
+				}
+			} else {
+				ed.Huh(env)
+			}
+		case "p":
+			if line, ok := ed.LineAt(ed.Cursor); ok {
+				ed.Print(env, line)
+			} else {
+				ed.Huh(env)
+			}
+		default:
+			i, err := strconv.Atoi(command)
+			if err != nil {
+				ed.Huh(env)
+				return
+			}
+			newCursor := i - 1 // 1-based indexing
+			if line, ok := ed.LineAt(newCursor); ok {
+				ed.Cursor = newCursor
+				ed.Print(env, line)
+			} else {
+				ed.Huh(env)
+			}
+		}
+	case EdInsertMode:
+		if command == "." {
+			ed.Mode = EdCommandMode
+		} else {
+			if len(ed.Buffer) >= EdLineCountLimit {
+				ed.Huh(env)
+				return
+			}
+			if len(command) >= EdLineSizeLimit {
+				ed.Huh(env)
+				return
+			}
+			if _, ok := ed.LineAt(ed.Cursor); ok {
+				ed.Cursor += 1
+				ed.Buffer = slices.Insert(ed.Buffer, ed.Cursor, command)
+			} else if len(ed.Buffer) == 0 {
+				ed.Cursor = 0
+				ed.Buffer = append(ed.Buffer, command);
+			} else {
+				ed.Huh(env)
+			}
+		}
+	}
+}
+
+var Eds = map[string]*EdState{}
+
 func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, context EvalContext) {
 	switch command.Name {
 	case "topspammers":
@@ -373,6 +488,17 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			}
 			env.SendMessage("Their names are: "+sb.String());
 		}
+	case "edcount":
+		env.SendMessage(fmt.Sprintf("%s There are currently %d Ed states", env.AtAuthor(), len(Eds)));
+		return;
+	case "ed":
+		ed, ok := Eds[env.AtAuthor()];
+		if !ok {
+			ed = &EdState{};
+			Eds[env.AtAuthor()] = ed;
+		}
+		ed.ExecCommand(env, command.Args);
+		return;
 	case "eval":
 		if !env.IsAuthorAdmin() {
 			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
@@ -595,6 +721,11 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 }
 
 func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
+	if command.Prefix == "^" {
+		env.SendMessage(env.AtAuthor()+" please do !"+command.Name+" instead. ^"+command.Name+" is only for bots in testing environment.")
+		return
+	}
+
 	context := EvalContextFromCommandEnvironment(env, command)
 	row := db.QueryRow("SELECT bex FROM commands WHERE name = $1", command.Name);
 	var bex string

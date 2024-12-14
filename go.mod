@@ -1,6 +1,6 @@
 module github.com/tsoding/gatekeeper
 
-go 1.17
+go 1.18
 
 require (
 	github.com/bwmarrin/discordgo v0.26.1
