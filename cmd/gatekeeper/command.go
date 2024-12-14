@@ -340,11 +340,11 @@ func (ed *EdState) ExecCommand(env CommandEnvironment, command string) {
 		if command == "." {
 			ed.Mode = EdCommandMode
 		} else {
-			if len(ed.Buffer) >= EdLineCountLimit {
+			if len(ed.Buffer) > EdLineCountLimit {
 				ed.Huh(env)
 				return
 			}
-			if len(command) >= EdLineSizeLimit {
+			if len(command) > EdLineSizeLimit {
 				ed.Huh(env)
 				return
 			}
