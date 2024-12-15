@@ -77,6 +77,10 @@ func (env *DiscordEnvironment) AtAdmin() string {
 	return AtID(AdminID)
 }
 
+func (env *DiscordEnvironment) AuthorUserId() string {
+	return "discord#"+env.m.Author.ID
+}
+
 func (env *DiscordEnvironment) AtAuthor() string {
 	return AtUser(env.m.Author)
 }
