@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"math"
 	"slices"
+	"unicode/utf8"
 )
 
 var (
@@ -56,6 +57,7 @@ func parseCommand(source string) (Command, bool) {
 type CommandEnvironment interface {
 	AtAdmin() string
 	AtAuthor() string
+	AuthorUserId() string
 	IsAuthorAdmin() bool
 	AsDiscord() *DiscordEnvironment
 	SendMessage(message string)
@@ -63,6 +65,10 @@ type CommandEnvironment interface {
 
 type CyrillifyEnvironment struct {
 	InnerEnv CommandEnvironment
+}
+
+func (env *CyrillifyEnvironment) AuthorUserId() string {
+	return env.InnerEnv.AuthorUserId()
 }
 
 func (env *CyrillifyEnvironment) AsDiscord() *DiscordEnvironment {
@@ -264,6 +270,33 @@ type EdState struct {
 	Mode EdMode
 }
 
+func SaveEdStateByUserId(db *sql.DB, userId string, ed EdState) error {
+	_, err := db.Exec("INSERT INTO Ed_State (user_id, buffer, cur, mode) VALUES ($1, $2, $3, $4) ON CONFLICT (user_id) DO UPDATE SET buffer = EXCLUDED.buffer, cur = EXCLUDED.cur, mode = EXCLUDED.mode;", userId, strings.Join(ed.Buffer, "\n"), ed.Cursor, ed.Mode)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func LoadEdStateByUserId(db *sql.DB, userId string) (EdState, error) {
+	row := db.QueryRow("SELECT buffer, cur, mode FROM Ed_State WHERE user_id = $1", userId);
+	var buffer string
+	var cursor int
+	var mode int
+	err := row.Scan(&buffer, &cursor, &mode);
+	if err == sql.ErrNoRows {
+		return EdState{}, nil
+	}
+	if err != nil {
+		return EdState{}, err
+	}
+	return EdState{
+		Buffer: strings.Split(buffer, "\n"),
+		Cursor: cursor,
+		Mode: EdMode(mode),
+	}, nil
+}
+
 func (ed *EdState) Print(env CommandEnvironment, line string) {
 	env.SendMessage(env.AtAuthor()+" "+line);
 }
@@ -281,6 +314,9 @@ func (ed *EdState) Huh(env CommandEnvironment) {
 }
 
 const (
+	// NOTE: if these values are modified the size of the buffer of the Ed_State table
+	// should be adjusted as well. Ideally it should be equal or bigger than
+	// 2*EdLineCountLimit*EdLineSizeLimit (the 2 is to accomodate the newlines)
 	EdLineCountLimit = 5
 	EdLineSizeLimit = 100
 )
@@ -344,7 +380,7 @@ func (ed *EdState) ExecCommand(env CommandEnvironment, command string) {
 				ed.Huh(env)
 				return
 			}
-			if len(command) > EdLineSizeLimit {
+			if utf8.RuneCountInString(command) > EdLineSizeLimit {
 				ed.Huh(env)
 				return
 			}
@@ -358,10 +394,12 @@ func (ed *EdState) ExecCommand(env CommandEnvironment, command string) {
 				ed.Huh(env)
 			}
 		}
+	default:
+		log.Printf("Invalid mode of Ed State: %#v\n", ed)
+		env.SendMessage(fmt.Sprintf("%s something went wrong with the state of your Ed. I've tried to correct it. Try again and ask %s to check the logs if the problem persists.", env.AtAuthor(), env.AtAdmin()));
+		ed.Mode = EdCommandMode
 	}
 }
-
-var Eds = map[string]*EdState{}
 
 func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, context EvalContext) {
 	switch command.Name {
@@ -488,20 +526,25 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			}
 			env.SendMessage("Their names are: "+sb.String());
 		}
-	case "edcount":
-		env.SendMessage(fmt.Sprintf("%s There are currently %d Ed states", env.AtAuthor(), len(Eds)));
-		return;
 	case "edlimit":
 		env.SendMessage(fmt.Sprintf("%s Line Count: %d, Line Size: %d", env.AtAuthor(), EdLineCountLimit, EdLineSizeLimit))
 		return;
 	case "ed":
-		ed, ok := Eds[env.AtAuthor()];
-		if !ok {
-			ed = &EdState{};
-			Eds[env.AtAuthor()] = ed;
+		userId := env.AuthorUserId()
+		ed, err := LoadEdStateByUserId(db, userId)
+		if err != nil {
+			log.Printf("Could not load Ed_State of user %s: %s\n", userId, err)
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+			return
 		}
 		ed.ExecCommand(env, command.Args);
-		return;
+		err = SaveEdStateByUserId(db, userId, ed)
+		if err != nil {
+			log.Printf("Could not save %#v of user %s: %s\n", ed, userId, err)
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+			return
+		}
+		return
 	case "eval":
 		if !env.IsAuthorAdmin() {
 			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())

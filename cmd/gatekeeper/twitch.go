@@ -43,10 +43,16 @@ func (env *TwitchEnvironment) AtAdmin() string {
 	return "@"+BotAdminTwitchHandle
 }
 
+func (env *TwitchEnvironment) AuthorUserId() string {
+	return "twitch#"+env.AuthorHandle
+}
+
 func (env *TwitchEnvironment) AtAuthor() string {
 	if len(env.AuthorHandle) > 0 {
 		return "@"+env.AuthorHandle
 	}
+	// TODO: in which situations this can be empty?
+	// it should be documented here
 	return ""
 }
 
