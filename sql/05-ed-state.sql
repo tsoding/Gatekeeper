@@ -8,7 +8,7 @@ CREATE TABLE Ed_State(
     -- NOTE: the size of the buffer is based on EdLineCountLimit and EdLineSizeLimit constants.
     -- The formula is 2*EdLineCountLimit*EdLineSizeLimit (the 2 is to accomodate the newlines)
     -- If the constants are modified, this size should be adjusted as well.
-    buffer varchar(2*5*100),
+    buffer varchar(1000),
     cur int,
     mode int,
     UNIQUE(user_id)
