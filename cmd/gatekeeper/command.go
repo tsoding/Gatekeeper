@@ -341,7 +341,7 @@ func (ed *EdState) ExecCommand(env CommandEnvironment, command string) {
 		case "d":
 			if _, ok := ed.LineAt(ed.Cursor); ok {
 				ed.Buffer = slices.Delete(ed.Buffer, ed.Cursor, ed.Cursor+1)
-				if ed.Cursor >= len(ed.Buffer) { // Cursor overflew after deleting last line
+				if ed.Cursor >= len(ed.Buffer) && ed.Cursor > 0 { // Cursor overflew after deleting last line
 					ed.Cursor -= 1
 				}
 			} else {
