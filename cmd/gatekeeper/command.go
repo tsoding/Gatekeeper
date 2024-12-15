@@ -290,11 +290,14 @@ func LoadEdStateByUserId(db *sql.DB, userId string) (EdState, error) {
 	if err != nil {
 		return EdState{}, err
 	}
-	return EdState{
-		Buffer: strings.Split(buffer, "\n"),
+	ed := EdState{
 		Cursor: cursor,
 		Mode: EdMode(mode),
-	}, nil
+	}
+	if len(buffer) > 0 {
+		ed.Buffer = strings.Split(buffer, "\n");
+	}
+	return ed, nil
 }
 
 func (ed *EdState) Print(env CommandEnvironment, line string) {
