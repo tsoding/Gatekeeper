@@ -1,5 +1,7 @@
 # Gatekeeper
 
+![gatekeeper](gatekeeper.png)
+
 The chat bot Zozin does not want you to know about.
 
 ## Quick Start
