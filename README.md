@@ -1,6 +1,6 @@
 # Gatekeeper
 
-![gatekeeper](gatekeeper.png)
+![gatekeeper](gatekeeper-256.png)
 
 The chat bot Zozin does not want you to know about.
 
