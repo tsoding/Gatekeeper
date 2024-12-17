@@ -113,12 +113,34 @@ func parseExpr(sourceRunes []rune) ([]rune, Expr, error) {
 		if sourceRunes[0] == '"' {
 			expr.Type = ExprStr
 			sourceRunes = sourceRunes[1:]
-			// TODO: parseExpr does not support string escaping
-			literalRunes, restRune := spanRunes(sourceRunes, func(x rune) bool {return x != '"'})
-			if len(restRune) <= 0 && restRune[0] != '"' {
-				return restRune, expr, errors.New("Expected \"")
+			literalRunes := []rune{}
+			i := 0
+			span: for i < len(sourceRunes) {
+				switch sourceRunes[i] {
+				case '"':
+					break span
+				case '\\':
+					i += 1
+					if i >= len(sourceRunes) {
+						return sourceRunes[i:], expr, errors.New("Unfinished escape sequence")
+					}
+					// TODO: support all common escape sequences
+					switch sourceRunes[i] {
+					case 'n':
+						literalRunes = append(literalRunes, '\n')
+						i += 1
+					default:
+						return sourceRunes[i:], expr, errors.New(fmt.Sprintf("Unknown escape sequence starting with `%c`", sourceRunes[i]))
+					}
+				default:
+					literalRunes = append(literalRunes, sourceRunes[i])
+				}
 			}
-			sourceRunes = restRune[1:]
+			if i >= len(sourceRunes) {
+				return sourceRunes[i:], expr, errors.New("Expected \"")
+			}
+			i += 1;
+			sourceRunes = sourceRunes[i:]
 			expr.AsStr = string(literalRunes)
 			return sourceRunes, expr, nil
 		} else if unicode.IsDigit(sourceRunes[0]) {
