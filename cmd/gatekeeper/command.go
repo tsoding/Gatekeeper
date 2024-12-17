@@ -426,6 +426,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
 			return
 		}
+		// TODO: report "added" instead of "updated" when the command didn't exist but was newly created
 		env.SendMessage(fmt.Sprintf("%s command %s is updated", env.AtAuthor(), name))
 	case "delcmd":
 		return
