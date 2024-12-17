@@ -420,7 +420,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		name := matches[1]
 		bex := matches[3]
 
-		_, err := db.Exec("INSERT INTO Commands (name, bex) VALUE (?, ?) ON CONFLICT (name) DO UPDATE set bex = EXCLUDED.bex", name, bex);
+		_, err := db.Exec("INSERT INTO Commands (name, bex) VALUES (?, ?) ON CONFLICT (name) DO UPDATE set bex = EXCLUDED.bex", name, bex);
 		if err != nil {
 			log.Printf("Could not update command %s: %s\n", name, err)
 			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
