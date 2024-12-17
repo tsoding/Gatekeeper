@@ -401,6 +401,29 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			return
 		}
 		return
+	case "showcmd":
+		regexp.MustCompile("^"+CommandDef+"$")
+		matches := CommandNoPrefixRegexp.FindStringSubmatch(command.Args)
+		if len(matches) == 0 {
+			// TODO: give more info on the syntactic error to the user
+			env.SendMessage(env.AtAuthor() + " syntax error")
+			return
+		}
+
+		name := matches[1]
+		row := db.QueryRow("SELECT bex FROM commands WHERE name = $1", name);
+		var bex string
+		err := row.Scan(&bex)
+		if err == sql.ErrNoRows {
+			env.SendMessage(fmt.Sprintf("%s command %s does not exist", env.AtAuthor(), name))
+			return
+		}
+		if err != nil {
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+			log.Printf("Error while querying command %s: %s\n", command.Name, err);
+			return
+		}
+		env.SendMessage(fmt.Sprintf("%s %s", env.AtAuthor(), bex))
 	case "addcmd":
 		fallthrough
 	case "updcmd":
