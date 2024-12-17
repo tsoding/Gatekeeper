@@ -134,6 +134,7 @@ func parseExpr(sourceRunes []rune) ([]rune, Expr, error) {
 					}
 				default:
 					literalRunes = append(literalRunes, sourceRunes[i])
+					i += 1
 				}
 			}
 			if i >= len(sourceRunes) {
