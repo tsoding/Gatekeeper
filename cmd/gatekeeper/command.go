@@ -21,7 +21,9 @@ import (
 var (
 	// TODO: make the CommandPrefix configurable from the database, so we can set it per instance
 	CommandPrefix = "[\\$\\!\\^]"
-	CommandRegexp = regexp.MustCompile("^ *(" + CommandPrefix + ") *([a-zA-Z0-9\\-_]+)( +(.*))?$")
+	CommandDef = "([a-zA-Z0-9\\-_]+)( +(.*))?"
+	CommandRegexp = regexp.MustCompile("^ *("+CommandPrefix+") *"+CommandDef+"$")
+	CommandNoPrefixRegexp = regexp.MustCompile("^ *"+CommandDef+"$")
 	Commit        = func() string {
 		if info, ok := debug.ReadBuildInfo(); ok {
 			for _, setting := range info.Settings {
@@ -398,6 +400,35 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
 			return
 		}
+		return
+	case "addcmd":
+		fallthrough
+	case "updcmd":
+		if !env.IsAuthorAdmin() {
+			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
+			return
+		}
+
+		regexp.MustCompile("^"+CommandDef+"$")
+		matches := CommandNoPrefixRegexp.FindStringSubmatch(command.Args)
+		if len(matches) == 0 {
+			// TODO: give more info on the syntactic error to the user
+			env.SendMessage(env.AtAuthor() + " syntax error")
+			return
+		}
+
+		name := matches[1]
+		bex := matches[3]
+
+		_, err := db.Exec("INSERT INTO Commands (name, bex) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET bex = EXCLUDED.bex;", name, bex);
+		if err != nil {
+			log.Printf("Could not update command %s: %s\n", name, err)
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+			return
+		}
+		// TODO: report "added" instead of "updated" when the command didn't exist but was newly created
+		env.SendMessage(fmt.Sprintf("%s command %s is updated", env.AtAuthor(), name))
+	case "delcmd":
 		return
 	case "eval":
 		if !env.IsAuthorAdmin() {
