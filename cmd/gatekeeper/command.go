@@ -20,7 +20,8 @@ import (
 
 var (
 	// TODO: make the CommandPrefix configurable from the database, so we can set it per instance
-	CommandPrefix = "[\\$\\!\\^]"
+	// CommandPrefix = "[\\$\\!\\^]"
+	CommandPrefix = "[\\^]"
 	CommandDef = "([a-zA-Z0-9\\-_]+)( +(.*))?"
 	CommandRegexp = regexp.MustCompile("^ *("+CommandPrefix+") *"+CommandDef+"$")
 	CommandNoPrefixRegexp = regexp.MustCompile("^ *"+CommandDef+"$")
@@ -648,10 +649,10 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 }
 
 func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
-	if command.Prefix == "^" {
-		env.SendMessage(env.AtAuthor()+" please do !"+command.Name+" instead. ^"+command.Name+" is only for bots in testing environment.")
-		return
-	}
+	// if command.Prefix == "^" {
+	// 	env.SendMessage(env.AtAuthor()+" please do !"+command.Name+" instead. ^"+command.Name+" is only for bots in testing environment.")
+	// 	return
+	// }
 
 	context := EvalContextFromCommandEnvironment(env, command)
 	row := db.QueryRow("SELECT bex FROM commands WHERE name = $1", command.Name);
