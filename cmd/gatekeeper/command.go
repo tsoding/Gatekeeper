@@ -403,14 +403,13 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		}
 		return
 	case "addcmd":
-		return
+		fallthrough
 	case "updcmd":
-		// if !env.IsAuthorAdmin() {
-		// 	env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
-		// 	return
-		// }
+		if !env.IsAuthorAdmin() {
+			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
+			return
+		}
 
-		// !updcmd <name> <bex>
 		regexp.MustCompile("^"+CommandDef+"$")
 		matches := CommandNoPrefixRegexp.FindStringSubmatch(command.Args)
 		if len(matches) == 0 {
@@ -422,9 +421,13 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		name := matches[1]
 		bex := matches[3]
 
-		env.SendMessage(fmt.Sprintf("%s Name is \"%s\", Bex is \"%s\"", env.AtAuthor(), name, bex))
-
-		// "INSERT INTO Commands (name, bex) VALUE (?, ?)"
+		_, err := db.Exec("INSERT INTO Commands (name, bex) VALUE (?, ?) ON CONFLICT (name) DO UPDATE set bex = EXCLUDED.bex", name, bex);
+		if err != nil {
+			log.Printf("Could not update command %s: %s\n", name, err)
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+			return
+		}
+		env.SendMessage(fmt.Sprintf("%s command %s is updated", env.AtAuthor(), name))
 	case "delcmd":
 		return
 	case "eval":
@@ -649,10 +652,10 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 }
 
 func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
-	// if command.Prefix == "^" {
-	// 	env.SendMessage(env.AtAuthor()+" please do !"+command.Name+" instead. ^"+command.Name+" is only for bots in testing environment.")
-	// 	return
-	// }
+	if command.Prefix == "^" {
+		env.SendMessage(env.AtAuthor()+" please do !"+command.Name+" instead. ^"+command.Name+" is only for bots in testing environment.")
+		return
+	}
 
 	context := EvalContextFromCommandEnvironment(env, command)
 	row := db.QueryRow("SELECT bex FROM commands WHERE name = $1", command.Name);
