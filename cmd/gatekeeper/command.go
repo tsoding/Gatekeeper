@@ -452,6 +452,26 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		// TODO: report "added" instead of "updated" when the command didn't exist but was newly created
 		env.SendMessage(fmt.Sprintf("%s command %s is updated", env.AtAuthor(), name))
 	case "delcmd":
+		regexp.MustCompile("^"+CommandDef+"$")
+		matches := CommandNoPrefixRegexp.FindStringSubmatch(command.Args)
+		if len(matches) == 0 {
+			// TODO: give more info on the syntactic error to the user
+			env.SendMessage(env.AtAuthor() + " syntax error")
+			return
+		}
+
+		name := matches[1]
+		_, err := db.Exec("DELETE FROM commands WHERE name = $1", name);
+		// if err == sql.ErrNoRows {
+		// 	env.SendMessage(fmt.Sprintf("%s command %s does not exist", env.AtAuthor(), name))
+		// 	return
+		// }
+		if err != nil {
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+			log.Printf("Error while querying command %s: %s\n", command.Name, err);
+			return
+		}
+		env.SendMessage(fmt.Sprintf("%s deleted %s", env.AtAuthor(), name))
 		return
 	case "eval":
 		if !env.IsAuthorAdmin() {
