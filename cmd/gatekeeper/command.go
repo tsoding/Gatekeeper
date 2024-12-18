@@ -462,15 +462,12 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 
 		name := matches[1]
 		_, err := db.Exec("DELETE FROM commands WHERE name = $1", name);
-		// if err == sql.ErrNoRows {
-		// 	env.SendMessage(fmt.Sprintf("%s command %s does not exist", env.AtAuthor(), name))
-		// 	return
-		// }
 		if err != nil {
 			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
 			log.Printf("Error while querying command %s: %s\n", command.Name, err);
 			return
 		}
+		// TODO: report "does not exist" when the deleted command didn't exist
 		env.SendMessage(fmt.Sprintf("%s deleted %s", env.AtAuthor(), name))
 		return
 	case "eval":
