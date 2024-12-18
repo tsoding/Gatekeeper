@@ -675,11 +675,6 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 }
 
 func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
-	if command.Prefix == "^" {
-		env.SendMessage(env.AtAuthor()+" please do !"+command.Name+" instead. ^"+command.Name+" is only for bots in testing environment.")
-		return
-	}
-
 	context := EvalContextFromCommandEnvironment(env, command)
 	row := db.QueryRow("SELECT bex FROM commands WHERE name = $1", command.Name);
 	var bex string
