@@ -251,6 +251,12 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) 
 						result, err = context.EvalExprs(args)
 						return
 					},
+					"choice": func(context *EvalContext, args []Expr) (result Expr, err error) {
+						if len(args) <= 0 {
+							return Expr{}, fmt.Errorf("Can't choose among zero options")
+						}
+						return context.EvalExpr(args[rand.Intn(len(args))])
+					},
 				},
 			},
 		},
