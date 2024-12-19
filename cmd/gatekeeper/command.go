@@ -20,7 +20,7 @@ import (
 
 var (
 	// TODO: make the CommandPrefix configurable from the database, so we can set it per instance
-	CommandPrefix = "[\\$\\!]"
+	CommandPrefix = "[\\$\\!\\^]"
 	CommandDef = "([a-zA-Z0-9\\-_]+)( +(.*))?"
 	CommandRegexp = regexp.MustCompile("^ *("+CommandPrefix+") *"+CommandDef+"$")
 	CommandNoPrefixRegexp = regexp.MustCompile("^ *"+CommandDef+"$")
