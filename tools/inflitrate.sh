@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 infiltrate_init() {
     echo "##################################################################"
     echo "# WARNING! This script is a part of an on going effort to create #"
@@ -25,9 +27,9 @@ infiltrate_init() {
     #   `-data/               # Applications data
     #     `-postgres/...
     #     `-gatekeeper/...
-    mkdir -vp $HOME/Gatekeeper/src
-    mkdir -vp $HOME/Gatekeeper/pkg
-    mkdir -vp $HOME/Gatekeeper/data
+    mkdir -vp "$HOME/Gatekeeper/src"
+    mkdir -vp "$HOME/Gatekeeper/pkg"
+    mkdir -vp "$HOME/Gatekeeper/data"
 
     setup_deps
     setup_postgres
@@ -58,16 +60,16 @@ setup_postgres() {
         return
     fi
 
-    cd $HOME/Gatekeeper/src
+    cd "$HOME/Gatekeeper/src"
 
     wget https://ftp.postgresql.org/pub/source/v17.2/postgresql-17.2.tar.gz
     tar fvx postgresql-17.2.tar.gz
     cd ./postgresql-17.2/
-    ./configure --prefix=$HOME/Gatekeeper/pkg/postgresql-17.2/
+    ./configure --prefix="$HOME/Gatekeeper/pkg/postgresql-17.2/"
     make -j$(nproc)
     make install
 
-    $HOME/Gatekeeper/pkg/postgresql-17.2/bin/pg_ctl init -D $HOME/Gatekeeper/data/db
+    "$HOME/Gatekeeper/pkg/postgresql-17.2/bin/pg_ctl" init -D "$HOME/Gatekeeper/data/db"
     # TODO(rexim): create "gatekeeper" user and database
 }
 
@@ -77,7 +79,7 @@ setup_go() {
         return
     fi
 
-    cd $HOME/Gatekeeper/pkg
+    cd "$HOME/Gatekeeper/pkg"
     wget https://go.dev/dl/go1.23.4.linux-amd64.tar.gz
     tar fvx go1.23.4.linux-amd64.tar.gz
 }
@@ -88,7 +90,7 @@ setup_gatekeeper() {
         return
     fi
 
-    cd $HOME/Gatekeeper/src
+    cd "$HOME/Gatekeeper/src"
 
     # TODO(rexim): iirc Go has its own sort of standardized layout of installing packages.
     # It has something to do with $GOPATH and $GOROOT or whatever (I'm not a Go dev, I don't know)
@@ -96,8 +98,8 @@ setup_gatekeeper() {
 
     git clone https://github.com/tsoding/gatekeeper
     cd gatekeeper
-    $HOME/Gatekeeper/pkg/go/bin/go build ./cmd/gatekeeper
-    cp -v $HOME/Gatekeeper/src/gatekeeper/gatekeeper $HOME/Gatekeeper/pkg/
+    "$HOME/Gatekeeper/pkg/go/bin/go" build ./cmd/gatekeeper
+    cp -v "$HOME/Gatekeeper/src/gatekeeper/gatekeeper" "$HOME/Gatekeeper/pkg/"
 
     # TODO(rexim): setup Bots credentials.
     # Preferably walk the user throw the entire process of acquiring them for both Twitch and Discord.
@@ -108,20 +110,27 @@ setup_gatekeeper() {
 # TODO(rexim): help command that prints all the available subcommands
 case "$1" in
     "" | "init")
-        inflitrate_init
+        infiltrate_init
         ;;
     "start")
         # TODO(rexim): redirect PostgreSQL log file somewhere to $HOME/Gatekeeper/data
-        "$HOME/Gatekeeper/pkg/postgresql-17.2/bin/pg_ctl" start -D $HOME/Gatekeeper/data/db
+        "$HOME/Gatekeeper/pkg/postgresql-17.2/bin/pg_ctl" start -D "$HOME/Gatekeeper/data/db"
         # TODO(rexim): start the bot process in daemon mode somehow?
         ;;
     "stop")
-        "$HOME/Gatekeeper/pkg/postgresql-17.2/bin/pg_ctl" stop -D $HOME/Gatekeeper/data/db
+        "$HOME/Gatekeeper/pkg/postgresql-17.2/bin/pg_ctl" stop -D "$HOME/Gatekeeper/data/db"
         # TODO(rexim): stop the bot process if it's running as well
         ;;
     "status")
-        "$HOME/Gatekeeper/pkg/postgresql-17.2/bin/pg_ctl" status -D $HOME/Gatekeeper/data/db
+        "$HOME/Gatekeeper/pkg/postgresql-17.2/bin/pg_ctl" status -D "$HOME/Gatekeeper/data/db"
         # TODO(rexim): check the status of the bot process if it's running
+        ;;
+    "update")
+        cd "$HOME/Gatekeeper/src/gatekeeper/"
+        git fetch --prune origin
+        git merge origin/master
+        "$HOME/Gatekeeper/pkg/go/bin/go" build ./cmd/gatekeeper
+        cp -v "$HOME/Gatekeeper/src/gatekeeper/gatekeeper" "$HOME/Gatekeeper/pkg/"
         ;;
     *)
         echo "ERROR: unknown subcommand '$1'"
