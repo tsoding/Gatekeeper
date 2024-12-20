@@ -1,32 +1,39 @@
 #!/bin/bash
 
-echo "##################################################################"
-echo "# WARNING! This script is a part of an on going effort to create #"
-echo "# Nyr-style (See https://github.com/Nyr/wireguard-install)       #"
-echo "# setup script for Gatekeeper and it's not finished yet.         #"
-echo "# It is not recommended to use it right now.                     #"
-echo "##################################################################"
-echo ""
-echo "Press Enter to continue or ^C to cancel..."
-read # TODO(rexim): this read is skipped when you `curl https://url/to/inflitrate.sh | bash` it
+infiltrate_init() {
+    echo "##################################################################"
+    echo "# WARNING! This script is a part of an on going effort to create #"
+    echo "# Nyr-style (See https://github.com/Nyr/wireguard-install)       #"
+    echo "# setup script for Gatekeeper and it's not finished yet.         #"
+    echo "# It is not recommended to use it right now.                     #"
+    echo "##################################################################"
+    echo ""
+    echo "Press Enter to continue or ^C to cancel..."
+    read # TODO(rexim): this read is skipped when you `curl https://url/to/inflitrate.sh | bash` it
 
-# NOTE(rexim): Rough Layout of $HOME/Gatekeeper
-#
-# `-$HOME/Gatekeeper/
-#   |
-#   `-src/                # Source code
-#   | `-postgres/...
-#   | `-gatekeeper/...
-#   `-pkg/                # Binaries build from the Source code
-#   | `-postgres/...
-#   | `-gatekeeper/...
-#   | `-go/...
-#   `-data/               # Applications data
-#     `-postgres/...
-#     `-gatekeeper/...
-mkdir -vp $HOME/Gatekeeper/src
-mkdir -vp $HOME/Gatekeeper/pkg
-mkdir -vp $HOME/Gatekeeper/data
+    # NOTE(rexim): Rough Layout of $HOME/Gatekeeper
+    #
+    # `-$HOME/Gatekeeper/
+    #   |
+    #   `-src/                # Source code
+    #   | `-postgres/...
+    #   | `-gatekeeper/...
+    #   `-pkg/                # Binaries build from the Source code
+    #   | `-postgres/...
+    #   | `-gatekeeper/...
+    #   | `-go/...
+    #   `-data/               # Applications data
+    #     `-postgres/...
+    #     `-gatekeeper/...
+    mkdir -vp $HOME/Gatekeeper/src
+    mkdir -vp $HOME/Gatekeeper/pkg
+    mkdir -vp $HOME/Gatekeeper/data
+
+    setup_deps
+    setup_postgres
+    setup_go
+    setup_gatekeeper
+}
 
 setup_deps() {
     . /etc/os-release
@@ -39,7 +46,7 @@ setup_deps() {
             ;;
         *)
             echo "------------------------------------------------------------"
-            echo "$NAME current is not supported."
+            echo "$NAME currently is not supported."
             echo "PostgreSQL build may fail due to missing dependencies."
             echo "------------------------------------------------------------"
     esac
@@ -101,18 +108,20 @@ setup_gatekeeper() {
 # TODO(rexim): help command that prints all the available subcommands
 case "$1" in
     "" | "init")
-        setup_postgres
-        setup_go
-        setup_gatekeeper
+        inflitrate_init
         ;;
     "start")
         # TODO(rexim): redirect PostgreSQL log file somewhere to $HOME/Gatekeeper/data
-        $HOME/Gatekeeper/pkg/postgresql-17.2/bin/pg_ctl start -D $HOME/Gatekeeper/data/db
+        "$HOME/Gatekeeper/pkg/postgresql-17.2/bin/pg_ctl" start -D $HOME/Gatekeeper/data/db
         # TODO(rexim): start the bot process in daemon mode somehow?
         ;;
     "stop")
-        $HOME/Gatekeeper/pkg/postgresql-17.2/bin/pg_ctl stop -D $HOME/Gatekeeper/data/db
+        "$HOME/Gatekeeper/pkg/postgresql-17.2/bin/pg_ctl" stop -D $HOME/Gatekeeper/data/db
         # TODO(rexim): stop the bot process if it's running as well
+        ;;
+    "status")
+        "$HOME/Gatekeeper/pkg/postgresql-17.2/bin/pg_ctl" status -D $HOME/Gatekeeper/data/db
+        # TODO(rexim): check the status of the bot process if it's running
         ;;
     *)
         echo "ERROR: unknown subcommand '$1'"
