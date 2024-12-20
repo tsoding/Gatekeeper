@@ -129,11 +129,14 @@ var CyrilMap = map[rune]rune{
 	'Y': 'У',
 }
 
-func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command) EvalContext {
+func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, count int64) EvalContext {
 	return EvalContext{
 		Scopes: []EvalScope{
 			EvalScope{
 				Funcs: map[string]Func{
+					"count": func(context *EvalContext, args []Expr) (Expr, error) {
+						return NewExprInt(int(count)), nil
+					},
 					"days_left_until": func(context *EvalContext, args []Expr) (Expr, error) {
 						if len(args) != 1 {
 							return Expr{}, fmt.Errorf("Expected 1 arguments")
@@ -703,12 +706,12 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 		return
 	}
 
-	context := EvalContextFromCommandEnvironment(env, command)
-	row := db.QueryRow("SELECT bex FROM commands WHERE name = $1", command.Name);
+	row := db.QueryRow("SELECT bex, count FROM commands WHERE name = $1", command.Name);
 	var bex string
-	err := row.Scan(&bex)
+	var count int64
+	err := row.Scan(&bex, &count)
 	if err == sql.ErrNoRows {
-		EvalBuiltinCommand(db, command, env, context)
+		EvalBuiltinCommand(db, command, env, EvalContextFromCommandEnvironment(env, command, 0))
 		return
 	}
 	if err != nil {
@@ -724,6 +727,9 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 		return
 	}
 
+	count += 1
+	context := EvalContextFromCommandEnvironment(env, command, count)
+
 	for _, expr := range exprs {
 		_, err := context.EvalExpr(expr)
 		if err != nil {
@@ -731,6 +737,13 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 			log.Printf("Error while evaluating \"%s\" command: %s", command.Name, err);
 			return
 		}
+	}
+
+	_, err = db.Exec("UPDATE commands SET count = $1 WHERE name = $2;", count, command.Name);
+	if err != nil {
+		env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+		log.Printf("Error while querying command %s: %s\n", command.Name, err);
+		return
 	}
 }
 
