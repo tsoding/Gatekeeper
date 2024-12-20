@@ -268,6 +268,58 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 
 func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, context EvalContext) {
 	switch command.Name {
+	case "bottomspammers":
+		discordEnv := env.AsDiscord()
+		if discordEnv == nil {
+			env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
+			return
+		}
+
+		name := strings.TrimSpace(command.Args)
+
+		if len(name) == 0 {
+			rows, err := db.Query("select user_name, count(text) as count from discord_log group by user_name order by count asc limit 10");
+			if err != nil {
+				log.Printf("%s\n", err)
+				env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+				return
+			}
+			defer rows.Close()
+
+			sb := strings.Builder{}
+			for index := 1; rows.Next(); index += 1 {
+				var userName string
+				var count int
+				err := rows.Scan(&userName, &count)
+				if err != nil {
+					log.Printf("%s\n", err)
+				} else {
+					sb.WriteString(fmt.Sprintf("%d. %s (%d)\n", index, userName, count))
+				}
+			}
+			env.SendMessage(env.AtAuthor() + " Bottom Spammers:\n"+sb.String())
+		} else {
+			rows, err := db.Query("select user_name, count(text) as count from discord_log where user_name = $1 group by user_name;", name);
+			if err != nil {
+				log.Printf("%s\n", err)
+				env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+				return
+			}
+			defer rows.Close()
+
+			sb := strings.Builder{}
+			for rows.Next() {
+				var userName string
+				var count int
+				err := rows.Scan(&userName, &count)
+				if err != nil {
+					log.Printf("%s\n", err)
+				} else {
+					sb.WriteString(fmt.Sprintf("%s (%d)\n", userName, count))
+				}
+			}
+			env.SendMessage(env.AtAuthor() + " " + sb.String())
+		}
 	case "topspammers":
 		discordEnv := env.AsDiscord()
 		if discordEnv == nil {
