@@ -56,8 +56,8 @@ setup_deps() {
         *)
             echo "------------------------------------------------------------"
             echo "$NAME currently is not supported."
-            echo "PostgreSQL build may fail due to missing dependencies."
             echo "------------------------------------------------------------"
+            exit 1
     esac
 }
 
