@@ -46,10 +46,12 @@ setup_deps() {
     # TODO(rexim): test on different distro via Docker
     case $ID in
         "void")
-            sudo xbps-install -y git bison flex readline readline-devel
+            # TODO(rexim): update xbps
+            sudo xbps-install -y git pkg-config bison flex readline readline-devel
             ;;
         "debian")
-            echo "TODO(rexim): Debian is not supported yet"
+            # TODO(rexim): update apt
+            sudo apt install git pkg-config gcc libicu-dev bison flex libreadline-dev zlib1g-dev
             ;;
         *)
             echo "------------------------------------------------------------"
