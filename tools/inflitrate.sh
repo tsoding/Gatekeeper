@@ -75,7 +75,7 @@ setup_postgres() {
     make install
 
     initdb -U postgres
-    pg_ctl start
+    pg_ctl start                # TODO(rexim): if there is already running stock Postgres on the machine this step will fail
     createuser gatekeeper -U postgres
     createdb gatekeeper -U postgres -O gatekeeper
     pg_ctl stop
@@ -152,3 +152,4 @@ esac
 #   but what if it is updated? Maybe part of the "init" should be replacing
 #   this file with a symlink to $GATEKEEPER_PREFIX/src/gatekeeper/tools/inflitrate.sh
 #   so it's always updated?
+# TODO(rexim): how would you autostart the whole system with this kind of setup
