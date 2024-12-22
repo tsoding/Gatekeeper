@@ -4,8 +4,11 @@ set -e
 
 export PGVER=17.2
 export GATEKEEPER_PREFIX="$HOME/Gatekeeper"
-export PGDATA="$GATEKEEPER_PREFIX/data/db" # NOTE(rexim): Tells PostgreSQL where the database is
+export PGDATA="$GATEKEEPER_PREFIX/data/db" # Tells PostgreSQL where the database is
 export PATH="$GATEKEEPER_PREFIX/pkg/go/bin:$GATEKEEPER_PREFIX/pkg/postgresql-$PGVER/bin/:$PATH"
+
+# Discard stdin. Needed when running from an one-liner which includes a newline
+read -N 999999 -t 0.001
 
 infiltrate_init() {
     echo "##################################################################"
@@ -15,10 +18,9 @@ infiltrate_init() {
     echo "# It is not recommended to use it right now.                     #"
     echo "##################################################################"
     echo ""
-    echo "Press Enter to continue or ^C to cancel..."
-    read # TODO(rexim): this read is skipped when you `curl https://url/to/inflitrate.sh | bash` it
+    read -p "Press Enter to continue or ^C to cancel..."
 
-    # NOTE(rexim): Rough Layout of $GATEKEEPER_PREFIX
+    # Rough Layout of $GATEKEEPER_PREFIX
     #
     # `-$GATEKEEPER_PREFIX/
     #   |
@@ -51,7 +53,7 @@ setup_deps() {
             ;;
         "debian")
             # TODO(rexim): update apt
-            su -c "apt install git pkg-config gcc libicu-dev bison flex libreadline-dev zlib1g-dev"
+            su -c "apt install git build-essential pkg-config gcc libicu-dev bison flex libreadline-dev zlib1g-dev"
             ;;
         *)
             echo "------------------------------------------------------------"
@@ -59,8 +61,8 @@ setup_deps() {
             echo "------------------------------------------------------------"
             exit 1
     esac
-}
 
+}
 setup_postgres() {
     if [ -e "$GATEKEEPER_PREFIX/pkg/postgresql-$PGVER/" ]; then
         echo "PostgreSQL is already setup"
@@ -69,6 +71,7 @@ setup_postgres() {
 
     cd "$GATEKEEPER_PREFIX/src"
 
+    # Build PostgreSQL from the Source Code
     wget https://ftp.postgresql.org/pub/source/v$PGVER/postgresql-$PGVER.tar.gz
     tar fvx postgresql-$PGVER.tar.gz
     cd ./postgresql-$PGVER/
@@ -76,8 +79,10 @@ setup_postgres() {
     make -j$(nproc)
     make install
 
+    # Initialize the Database
     initdb -U postgres
-    pg_ctl start                # TODO(rexim): if there is already running stock Postgres on the machine this step will fail
+    # TODO(rexim): if there is already running stock Postgres on the machine this step will fail
+    pg_ctl start
     createuser gatekeeper -U postgres
     createdb gatekeeper -U postgres -O gatekeeper
     pg_ctl stop
