@@ -8,7 +8,7 @@ export PGDATA="$GATEKEEPER_PREFIX/data/db" # Tells PostgreSQL where the database
 export PATH="$GATEKEEPER_PREFIX/pkg/go/bin:$GATEKEEPER_PREFIX/pkg/postgresql-$PGVER/bin/:$PATH"
 
 # Discard stdin. Needed when running from an one-liner which includes a newline
-read -N 999999 -t 0.001
+read -N 999999 -t 0.001 || true
 
 infiltrate_init() {
     echo "##################################################################"
