@@ -15,8 +15,7 @@ infiltrate_init() {
     echo "# It is not recommended to use it right now.                     #"
     echo "##################################################################"
     echo ""
-    echo "Press Enter to continue or ^C to cancel..."
-    read # TODO(rexim): this read is skipped when you `curl https://url/to/inflitrate.sh | bash` it
+    read -p "Press Enter to continue or ^C to cancel..."
 
     # NOTE(rexim): Rough Layout of $GATEKEEPER_PREFIX
     #
@@ -43,7 +42,7 @@ infiltrate_init() {
 
 setup_deps() {
     . /etc/os-release
-    # TODO(rexim): test on different distro via Docker
+    # TODO(rexim): test on different distros via Docker
     case $ID in
         "void")
             # TODO(rexim): update xbps
