@@ -152,7 +152,7 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 						if err != nil {
 							return Expr{}, err
 						}
-						return NewExprInt(int(math.Floor(date.Sub(time.Now()).Hours()/24))), nil
+						return NewExprInt(int(math.Ceil(date.Sub(time.Now()).Hours()/24))), nil
 					},
 					"twitch_or_discord": func(context *EvalContext, args []Expr) (result Expr, err error) {
 						if len(args) != 2 {
