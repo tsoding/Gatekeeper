@@ -68,15 +68,19 @@ setup_postgres() {
 
     cd "$GATEKEEPER_PREFIX/src"
 
+    # TODO(rexim): Do we need to build postgres with ssl support?
+    # Doesn't feel like we do cause this script implies that we are running bot and db
+    # on the same machine and the db only listens to local connections. But who knows?
+    # Maybe this script will support multiple machines setup in the future. But even
+    # in the case of multiple machine setup it is easier to just running everything
+    # inside of a VPN and listen only to the local VPN connections.
+
     wget https://ftp.postgresql.org/pub/source/v$PGVER/postgresql-$PGVER.tar.gz
     tar fvx postgresql-$PGVER.tar.gz
     cd ./postgresql-$PGVER/
-    ./configure --prefix="$GATEKEEPER_PREFIX/pkg/postgresql-$PGVER/" --with-ssl=openssl
+    ./configure --prefix="$GATEKEEPER_PREFIX/pkg/postgresql-$PGVER/"
     make -j$(nproc)
     make install
-
-    # TODO(rexim): configure ssl certificates for the server?
-    # Doesn't make much sense if you plan only do local connections, but still.
 
     mkdir -vp "$GATEKEEPER_PREFIX/data/logs"
     initdb -U postgres
@@ -98,23 +102,16 @@ setup_go() {
 }
 
 setup_gatekeeper() {
-    if [ ! -e "$GATEKEEPER_PREFIX/pkg/gatekeeper" ]; then
-        if [ ! -e "$GATEKEEPER_PREFIX/src/gatekeeper" ]; then
-            cd "$GATEKEEPER_PREFIX/src"
+    if [ ! -e "$GATEKEEPER_PREFIX/src/gatekeeper" ]; then
+        cd "$GATEKEEPER_PREFIX/src"
 
-            # TODO(rexim): iirc Go has its own sort of standardized layout of installing packages.
-            # It has something to do with $GOPATH and $GOROOT or whatever (I'm not a Go dev, I don't know)
-            # Maybe we can utilize this mechanism here somehow.
+        # TODO(rexim): iirc Go has its own sort of standardized layout of installing packages.
+        # It has something to do with $GOPATH and $GOROOT or whatever (I'm not a Go dev, I don't know)
+        # Maybe we can utilize this mechanism here somehow.
 
-            git clone https://github.com/tsoding/gatekeeper
-        else
-            echo "Gatekeeper Source is already setup"
-        fi
-        cd "$GATEKEEPER_PREFIX/src/gatekeeper"
-        go build ./cmd/gatekeeper
-        cp -v "$GATEKEEPER_PREFIX/src/gatekeeper/gatekeeper" "$GATEKEEPER_PREFIX/pkg/"
+        git clone https://github.com/tsoding/gatekeeper
     else
-        echo "Gatekeeper Binary is already setup"
+        echo "Gatekeeper Source is already setup"
     fi
 
     if [ ! -e "$GATEKEEPER_PREFIX/data/secret" ]; then
@@ -124,10 +121,16 @@ setup_gatekeeper() {
 #export GATEKEEPER_DISCORD_TOKEN=""   # Discord token https://discord.com/developers/docs/topics/oauth2
 #export GATEKEEPER_TWITCH_IRC_NICK="" # Twitch Login
 #export GATEKEEPER_TWITCH_IRC_PASS="" # Twitch Password https://twitchapps.com/tmi/
-export GATEKEEPER_PGSQL_CONNECTION="postgres://gatekeeper@localhost:5432/gatekeeper" # PostgreSQL connection URL https://www.postgresql.org/docs/current/libpq-connect.html#id-1.7.3.8.3.6
+export GATEKEEPER_PGSQL_CONNECTION="postgres://gatekeeper@localhost:5432/gatekeeper?sslmode=disable" # PostgreSQL connection URL https://www.postgresql.org/docs/current/libpq-connect.html#id-1.7.3.8.3.6
 END
     else
         echo "$GATEKEEPER_PREFIX/data/secret already exists"
+    fi
+
+    if [ ! -e "GATEKEEPER_PREFIX/inflitrate.sh" ]; then
+        ln -sv "$GATEKEEPER_PREFIX/src/gatekeeper/tools/inflitrate.sh" "GATEKEEPER_PREFIX/inflitrate.sh"
+    else
+        echo "GATEKEEPER_PREFIX/inflitrate.sh already exist"
     fi
 }
 
@@ -156,14 +159,14 @@ case "$1" in
         ;;
     "bot-start")
         . "$GATEKEEPER_PREFIX/data/secret"
-        "$GATEKEEPER_PREFIX/pkg/gatekeeper"
+        cd "$GATEKEEPER_PREFIX/src/gatekeeper"
+        go build ./cmd/gatekeeper
+        ./gatekeeper
         ;;
-    "bot-update")
+    "bot-pull")
         cd "$GATEKEEPER_PREFIX/src/gatekeeper/"
         git fetch --prune origin
         git merge origin/master
-        go build ./cmd/gatekeeper
-        cp -v "$GATEKEEPER_PREFIX/src/gatekeeper/gatekeeper" "$GATEKEEPER_PREFIX/pkg/"
         ;;
     *)
         echo "ERROR: unknown subcommand '$1'"
