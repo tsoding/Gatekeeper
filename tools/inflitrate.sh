@@ -71,10 +71,14 @@ setup_postgres() {
     wget https://ftp.postgresql.org/pub/source/v$PGVER/postgresql-$PGVER.tar.gz
     tar fvx postgresql-$PGVER.tar.gz
     cd ./postgresql-$PGVER/
-    ./configure --prefix="$GATEKEEPER_PREFIX/pkg/postgresql-$PGVER/"
+    ./configure --prefix="$GATEKEEPER_PREFIX/pkg/postgresql-$PGVER/" --with-ssl=openssl
     make -j$(nproc)
     make install
 
+    # TODO(rexim): configure ssl certificates for the server?
+    # Doesn't make much sense if you plan only do local connections, but still.
+
+    mkdir -vp "$GATEKEEPER_PREFIX/data/logs"
     initdb -U postgres
     pg_ctl start                # TODO(rexim): if there is already running stock Postgres on the machine this step will fail
     createuser gatekeeper -U postgres
@@ -94,24 +98,37 @@ setup_go() {
 }
 
 setup_gatekeeper() {
-    if [ -e "$GATEKEEPER_PREFIX/pkg/gatekeeper" ]; then
-        echo "Gatekeeper is already setup"
-        return
+    if [ ! -e "$GATEKEEPER_PREFIX/pkg/gatekeeper" ]; then
+        if [ ! -e "$GATEKEEPER_PREFIX/src/gatekeeper" ]; then
+            cd "$GATEKEEPER_PREFIX/src"
+
+            # TODO(rexim): iirc Go has its own sort of standardized layout of installing packages.
+            # It has something to do with $GOPATH and $GOROOT or whatever (I'm not a Go dev, I don't know)
+            # Maybe we can utilize this mechanism here somehow.
+
+            git clone https://github.com/tsoding/gatekeeper
+        else
+            echo "Gatekeeper Source is already setup"
+        fi
+        cd "$GATEKEEPER_PREFIX/src/gatekeeper"
+        go build ./cmd/gatekeeper
+        cp -v "$GATEKEEPER_PREFIX/src/gatekeeper/gatekeeper" "$GATEKEEPER_PREFIX/pkg/"
+    else
+        echo "Gatekeeper Binary is already setup"
     fi
 
-    cd "$GATEKEEPER_PREFIX/src"
-
-    # TODO(rexim): iirc Go has its own sort of standardized layout of installing packages.
-    # It has something to do with $GOPATH and $GOROOT or whatever (I'm not a Go dev, I don't know)
-    # Maybe we can utilize this mechanism here somehow.
-
-    git clone https://github.com/tsoding/gatekeeper
-    cd gatekeeper
-    go build ./cmd/gatekeeper
-    cp -v "$GATEKEEPER_PREFIX/src/gatekeeper/gatekeeper" "$GATEKEEPER_PREFIX/pkg/"
-
-    # TODO(rexim): setup Bots credentials.
-    # Preferably walk the user throw the entire process of acquiring them for both Twitch and Discord.
+    if [ ! -e "$GATEKEEPER_PREFIX/data/secret" ]; then
+        echo "Generating $GATEKEEPER_PREFIX/data/secret"
+        # TODO(rexim): walk the user throw the entire process of acquiring them for both Twitch and Discord.
+        cat > "$GATEKEEPER_PREFIX/data/secret" <<END
+#export GATEKEEPER_DISCORD_TOKEN=""   # Discord token https://discord.com/developers/docs/topics/oauth2
+#export GATEKEEPER_TWITCH_IRC_NICK="" # Twitch Login
+#export GATEKEEPER_TWITCH_IRC_PASS="" # Twitch Password https://twitchapps.com/tmi/
+export GATEKEEPER_PGSQL_CONNECTION="postgres://gatekeeper@localhost:5432/gatekeeper" # PostgreSQL connection URL https://www.postgresql.org/docs/current/libpq-connect.html#id-1.7.3.8.3.6
+END
+    else
+        echo "$GATEKEEPER_PREFIX/data/secret already exists"
+    fi
 }
 
 # TODO(rexim): some sort of simple sanity check for all non-"init" commands that the environment was "init"-ed
@@ -121,20 +138,27 @@ case "$1" in
     "" | "init")
         infiltrate_init
         ;;
-    "start")
-        # TODO(rexim): redirect PostgreSQL log file somewhere to $GATEKEEPER_PREFIX/data
-        pg_ctl start
-        # TODO(rexim): start the bot process in daemon mode somehow?
+    "db-start")
+        pg_ctl start -l "$GATEKEEPER_PREFIX/data/logs/postgres.log"
         ;;
-    "stop")
+    "db-stop")
         pg_ctl stop
-        # TODO(rexim): stop the bot process if it's running as well
         ;;
-    "status")
+    "db-status")
         pg_ctl status
-        # TODO(rexim): check the status of the bot process if it's running
         ;;
-    "update")
+    "db-psql")
+        . "$GATEKEEPER_PREFIX/data/secret"
+        psql "$GATEKEEPER_PGSQL_CONNECTION"
+        ;;
+    "db-logs")
+        tail -f "$GATEKEEPER_PREFIX/data/logs/postgres.log"
+        ;;
+    "bot-start")
+        . "$GATEKEEPER_PREFIX/data/secret"
+        "$GATEKEEPER_PREFIX/pkg/gatekeeper"
+        ;;
+    "bot-update")
         cd "$GATEKEEPER_PREFIX/src/gatekeeper/"
         git fetch --prune origin
         git merge origin/master
