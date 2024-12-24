@@ -127,10 +127,10 @@ END
         echo "$GATEKEEPER_PREFIX/data/secret already exists"
     fi
 
-    if [ ! -e "GATEKEEPER_PREFIX/inflitrate.sh" ]; then
-        ln -sv "$GATEKEEPER_PREFIX/src/gatekeeper/tools/inflitrate.sh" "GATEKEEPER_PREFIX/inflitrate.sh"
+    if [ ! -e "$GATEKEEPER_PREFIX/inflitrate.sh" ]; then
+        ln -sv "$GATEKEEPER_PREFIX/src/gatekeeper/tools/inflitrate.sh" "$GATEKEEPER_PREFIX/inflitrate.sh"
     else
-        echo "GATEKEEPER_PREFIX/inflitrate.sh already exist"
+        echo "$GATEKEEPER_PREFIX/inflitrate.sh already exist"
     fi
 }
 
