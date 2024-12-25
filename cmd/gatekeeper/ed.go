@@ -14,8 +14,8 @@ const (
 	// NOTE: if these values are modified the size of the buffer of the Ed_State table
 	// should be adjusted as well. Ideally it should be equal or bigger than
 	// 2*EdLineCountLimit*EdLineSizeLimit (the 2 is to accomodate the newlines)
-	EdLineCountLimit = 5
-	EdLineSizeLimit = 100
+	EdLineCountLimit = 6
+	EdLineSizeLimit = 101
 )
 
 type EdMode int
@@ -132,12 +132,12 @@ func (ed *EdState) ExecCommand(env CommandEnvironment, command string) {
 		if command == "." {
 			ed.Mode = EdCommandMode
 		} else {
-			if len(ed.Buffer) > EdLineCountLimit {
-				ed.Huh(env)
+			if len(ed.Buffer) >= EdLineCountLimit {
+				env.SendMessage(fmt.Sprintf("%s Your message exceeded line count limit (You may have %d lines maximum)", env.AtAuthor(), EdLineCountLimit))
 				return
 			}
-			if utf8.RuneCountInString(command) > EdLineSizeLimit {
-				ed.Huh(env)
+			if utf8.RuneCountInString(command) >= EdLineSizeLimit {
+				env.SendMessage(fmt.Sprintf("%s Your message exceeded line size limit (Your lines may have %d characters maximum)", env.AtAuthor(), EdLineSizeLimit))
 				return
 			}
 			if _, ok := ed.LineAt(ed.Cursor); ok {
