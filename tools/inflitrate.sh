@@ -1,4 +1,6 @@
 #!/bin/bash
+#      ^
+#      We only support bash
 
 set -e
 
@@ -177,6 +179,9 @@ secret-edit() {
 # TODO(rexim): help command that prints all the available subcommands
 case "$1" in
     "" | "init")   infiltrate-init ;;
+    # TODO(rexim): since all these commands are bash functions anyway maybe we should just
+    # have a single subcommand `run` that allows to run any bash command within the inflitrated
+    # environment
     "db-start")    db-start        ;;
     "db-stop")     db-stop         ;;
     "db-status")   db-status       ;;
@@ -188,6 +193,8 @@ case "$1" in
     "env")
         # Stolen from https://stackoverflow.com/questions/2683279/how-to-detect-if-a-script-is-being-sourced
         if (return 0 2>/dev/null); then
+            # TODO(rexim): check if we are already inflitrated and maybe say something about that?
+            # I don't really know if it makes sense to even care about user doing `env` while within `env`...
             set +e              # Do not enable exit-on-error in the user facing environment
             PS1="[inflitrated] $PS1"
         else
@@ -206,9 +213,4 @@ case "$1" in
 esac
 
 # TODO(rexim): subcommand to make/restore backups
-# TODO(rexim): how do you update the inflitrate.sh script itself?
-#   It is expected to be downloaded standalone into $HOME or what not,
-#   but what if it is updated? Maybe part of the "init" should be replacing
-#   this file with a symlink to $GATEKEEPER_PREFIX/src/gatekeeper/tools/inflitrate.sh
-#   so it's always updated?
-# TODO(rexim): how would you autostart the whole system with this kind of setup
+# TODO(rexim): how would you autostart the whole system with this kind of setup?
