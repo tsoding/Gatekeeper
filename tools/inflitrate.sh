@@ -168,8 +168,7 @@ db-logs() {
 bot-start() {
     . "$GATEKEEPER_PREFIX/data/secret"
     cd "$GATEKEEPER_PREFIX/src/gatekeeper"
-    go build ./cmd/gatekeeper
-    ./gatekeeper
+    go build ./cmd/gatekeeper && ./gatekeeper
 }
 
 bot-pull() {
