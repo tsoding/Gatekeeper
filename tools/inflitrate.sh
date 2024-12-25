@@ -3,6 +3,7 @@
 set -e
 
 export PGVER=17.2
+export GOVER=1.23.4
 export GATEKEEPER_PREFIX="$HOME/Gatekeeper"
 export PGDATA="$GATEKEEPER_PREFIX/data/db" # NOTE(rexim): Tells PostgreSQL where the database is
 export PATH="$GATEKEEPER_PREFIX/pkg/go/bin:$GATEKEEPER_PREFIX/pkg/postgresql-$PGVER/bin/:$PATH"
@@ -26,7 +27,6 @@ infiltrate_init() {
     #   | `-gatekeeper/...
     #   `-pkg/                # Binaries build from the Source code
     #   | `-postgres/...
-    #   | `-gatekeeper/...
     #   | `-go/...
     #   `-data/               # Applications data
     #     `-db/...
@@ -97,8 +97,8 @@ setup_go() {
     fi
 
     cd "$GATEKEEPER_PREFIX/pkg"
-    wget https://go.dev/dl/go1.23.4.linux-amd64.tar.gz
-    tar fvx go1.23.4.linux-amd64.tar.gz
+    wget https://go.dev/dl/go$GOVER.linux-amd64.tar.gz
+    tar fvx go$GOVER.linux-amd64.tar.gz
 }
 
 setup_gatekeeper() {
@@ -167,6 +167,9 @@ case "$1" in
         cd "$GATEKEEPER_PREFIX/src/gatekeeper/"
         git fetch --prune origin
         git merge origin/master
+        ;;
+    "secret-edit")
+        vim "$GATEKEEPER_PREFIX/data/secret"
         ;;
     *)
         echo "ERROR: unknown subcommand '$1'"
