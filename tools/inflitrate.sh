@@ -179,17 +179,10 @@ secret-edit() {
 # TODO(rexim): help command that prints all the available subcommands
 case "$1" in
     "" | "init")   infiltrate-init ;;
-    # TODO(rexim): since all these commands are bash functions anyway maybe we should just
-    # have a single subcommand `run` that allows to run any bash command within the inflitrated
-    # environment
-    "db-start")    db-start        ;;
-    "db-stop")     db-stop         ;;
-    "db-status")   db-status       ;;
-    "db-psql")     db-psql         ;;
-    "db-logs")     db-logs         ;;
-    "bot-start")   bot-start       ;;
-    "bot-pull")    bot-pull        ;;
-    "secret-edit") secret-edit     ;;
+    "run")
+        shift
+        $@
+        ;;
     "env")
         # Stolen from https://stackoverflow.com/questions/2683279/how-to-detect-if-a-script-is-being-sourced
         if (return 0 2>/dev/null); then
