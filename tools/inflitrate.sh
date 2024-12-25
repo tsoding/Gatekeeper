@@ -8,7 +8,7 @@ export GATEKEEPER_PREFIX="$HOME/Gatekeeper"
 export PGDATA="$GATEKEEPER_PREFIX/data/db" # NOTE(rexim): Tells PostgreSQL where the database is
 export PATH="$GATEKEEPER_PREFIX/pkg/go/bin:$GATEKEEPER_PREFIX/pkg/postgresql-$PGVER/bin/:$PATH"
 
-infiltrate_init() {
+infiltrate-init() {
     echo "##################################################################"
     echo "# WARNING! This script is a part of an on going effort to create #"
     echo "# Nyr-style (See https://github.com/Nyr/wireguard-install)       #"
@@ -134,42 +134,70 @@ END
     fi
 }
 
+db-start() {
+    pg_ctl start -l "$GATEKEEPER_PREFIX/data/logs/postgres.log"
+}
+
+db-stop() {
+    pg_ctl stop
+}
+
+db-status() {
+    pg_ctl status
+}
+
+db-psql() {
+    . "$GATEKEEPER_PREFIX/data/secret"
+    psql "$GATEKEEPER_PGSQL_CONNECTION"
+}
+
+db-logs() {
+    tail -f "$GATEKEEPER_PREFIX/data/logs/postgres.log"
+}
+
+bot-start() {
+    . "$GATEKEEPER_PREFIX/data/secret"
+    cd "$GATEKEEPER_PREFIX/src/gatekeeper"
+    go build ./cmd/gatekeeper
+    ./gatekeeper
+}
+
+bot-pull() {
+    cd "$GATEKEEPER_PREFIX/src/gatekeeper/"
+    git fetch --prune origin
+    git merge origin/master
+}
+
+secret-edit() {
+    vim "$GATEKEEPER_PREFIX/data/secret"
+}
+
 # TODO(rexim): some sort of simple sanity check for all non-"init" commands that the environment was "init"-ed
 # For instance, just check that $GATEKEEPER_PREFIX exists.
 # TODO(rexim): help command that prints all the available subcommands
 case "$1" in
-    "" | "init")
-        infiltrate_init
-        ;;
-    "db-start")
-        pg_ctl start -l "$GATEKEEPER_PREFIX/data/logs/postgres.log"
-        ;;
-    "db-stop")
-        pg_ctl stop
-        ;;
-    "db-status")
-        pg_ctl status
-        ;;
-    "db-psql")
-        . "$GATEKEEPER_PREFIX/data/secret"
-        psql "$GATEKEEPER_PGSQL_CONNECTION"
-        ;;
-    "db-logs")
-        tail -f "$GATEKEEPER_PREFIX/data/logs/postgres.log"
-        ;;
-    "bot-start")
-        . "$GATEKEEPER_PREFIX/data/secret"
-        cd "$GATEKEEPER_PREFIX/src/gatekeeper"
-        go build ./cmd/gatekeeper
-        ./gatekeeper
-        ;;
-    "bot-pull")
-        cd "$GATEKEEPER_PREFIX/src/gatekeeper/"
-        git fetch --prune origin
-        git merge origin/master
-        ;;
-    "secret-edit")
-        vim "$GATEKEEPER_PREFIX/data/secret"
+    "" | "init")   infiltrate-init ;;
+    "db-start")    db-start        ;;
+    "db-stop")     db-stop         ;;
+    "db-status")   db-status       ;;
+    "db-psql")     db-psql         ;;
+    "db-logs")     db-logs         ;;
+    "bot-start")   bot-start       ;;
+    "bot-pull")    bot-pull        ;;
+    "secret-edit") secret-edit     ;;
+    "env")
+        # Stolen from https://stackoverflow.com/questions/2683279/how-to-detect-if-a-script-is-being-sourced
+        if (return 0 2>/dev/null); then
+            set +e              # Do not enable exit-on-error in the user facing environment
+            PS1="[inflitrated] $PS1"
+        else
+            echo "You run this command incorrectly! It must be sourced like this:"
+            echo ""
+            echo "    $ source $0 $1"
+            echo ""
+            echo "This command just lets you have a shell within the environment of the $0 script"
+            exit 1
+        fi
         ;;
     *)
         echo "ERROR: unknown subcommand '$1'"
