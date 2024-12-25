@@ -132,11 +132,17 @@ func (ed *EdState) ExecCommand(env CommandEnvironment, command string) {
 		if command == "." {
 			ed.Mode = EdCommandMode
 		} else {
+			// NOTE: Keep in mind that to check the EdLineCountLimit
+			// we use `>=`, but to check EdLineSizelimit we use
+			// `>`. This is due to EdLineCountLimit being about
+			// checking the size of the buffer BEFORE inserting any
+			// new lines. While EdLineSizeLimit is about checking the
+			// size of the line we are about to insert.
 			if len(ed.Buffer) >= EdLineCountLimit {
 				env.SendMessage(fmt.Sprintf("%s Your message exceeded line count limit (You may have %d lines maximum)", env.AtAuthor(), EdLineCountLimit))
 				return
 			}
-			if utf8.RuneCountInString(command) >= EdLineSizeLimit {
+			if utf8.RuneCountInString(command) > EdLineSizeLimit {
 				env.SendMessage(fmt.Sprintf("%s Your message exceeded line size limit (Your lines may have %d characters maximum)", env.AtAuthor(), EdLineSizeLimit))
 				return
 			}
