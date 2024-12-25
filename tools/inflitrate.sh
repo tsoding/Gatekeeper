@@ -185,6 +185,10 @@ secret-edit() {
 # TODO(rexim): some sort of simple sanity check for all non-"init" commands that the environment was "init"-ed
 # For instance, just check that $GATEKEEPER_PREFIX exists.
 # TODO(rexim): help command that prints all the available subcommands
+# TODO(rexim): we can go even cooler with this whole command system:
+#   - No subcommands
+#   - If you are sourced do env
+#   - Otherwise do init
 case "$1" in
     "" | "init")
         infiltrate-init

@@ -150,7 +150,7 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 						}
 						date, err := time.Parse("2006-01-02", result.AsStr)
 						if err != nil {
-							return Expr{}, err
+							return Expr{}, fmt.Errorf("`%s` is not a valid date. Expected format YYYY-MM-DD.", result.AsStr)
 						}
 						return NewExprInt(int(math.Ceil(date.Sub(time.Now()).Hours()/24))), nil
 					},
@@ -538,13 +538,17 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		}
 		exprs, err := ParseAllExprs(command.Args)
 		if err != nil {
-			env.SendMessage(fmt.Sprintf("%s could not parse Bex: %s", env.AtAuthor(), err))
+			env.SendMessage(fmt.Sprintf("%s could not parse expression `%s`: %s", env.AtAuthor(), command.Args, err))
+			return
+		}
+		if len(exprs) == 0 {
+			env.SendMessage(fmt.Sprintf("%s no expressions were provided for evaluation", env.AtAuthor()))
 			return
 		}
 		for _, expr := range exprs {
 			_, err := context.EvalExpr(expr)
 			if err != nil {
-				env.SendMessage(fmt.Sprintf("%s could not evaluate Bex. Ask %s to check the logs", env.AtAuthor(), env.AtAdmin()))
+				env.SendMessage(fmt.Sprintf("%s could not evaluate expression `%s`: %s", env.AtAuthor(), command.Args, err))
 				return
 			}
 		}
@@ -785,8 +789,7 @@ func EvalCommand(db *sql.DB, command Command, env CommandEnvironment) {
 	for _, expr := range exprs {
 		_, err := context.EvalExpr(expr)
 		if err != nil {
-			env.SendMessage(env.AtAuthor() + " Mods did an oopsie-doopsie while defining this command. Ask " + env.AtAdmin() + " to check the logs");
-			log.Printf("Error while evaluating \"%s\" command: %s", command.Name, err);
+			env.SendMessage(fmt.Sprintf("%s Could not evaluate command's expression `%s`: %s", env.AtAuthor(), bex, err));
 			return
 		}
 	}

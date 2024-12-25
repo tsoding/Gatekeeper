@@ -166,6 +166,8 @@ func parseExpr(sourceRunes []rune) ([]rune, Expr, error) {
 			expr.Type = ExprFuncall
 			expr.AsFuncall.Name = string(name)
 
+			// TODO: something's wrong with the bex parser
+			// It does not parse `say()` and parse `say(` as zero expressions
 			if len(sourceRunes) > 0 && sourceRunes[0] == '(' {
 				for {
 					sourceRunes = sourceRunes[1:]
