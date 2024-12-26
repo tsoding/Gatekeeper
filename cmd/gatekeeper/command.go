@@ -604,7 +604,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			} else if err == SomebodyTryingToHackWeather {
 				response = "Are you trying to hack me or something? ._."
 			} else if err != nil {
-				response = "Something went wrong while querying the weather for `" + place + "`. " + AtID(AdminID) + " please check the logs."
+				response = "Something went wrong while querying the weather for `" + place + "`. " + env.AtAdmin() + " please check the logs."
 				log.Println("Error while checking the weather for `"+place+"`:", err)
 			}
 		} else {
