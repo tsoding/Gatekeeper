@@ -114,6 +114,20 @@ func (ed *EdState) ExecCommand(env CommandEnvironment, command string) {
 			} else {
 				ed.Huh(env)
 			}
+		case ",n":
+			if len(ed.Buffer) > 0 {
+				for cursor, line := range(ed.Buffer) {
+					ed.Print(env, fmt.Sprintf("%-8d %s", cursor + 1, line))
+				}
+			} else {
+				ed.Huh(env)
+			}
+		case "n":
+			if line, ok := ed.LineAt(ed.Cursor); ok {
+				ed.Print(env, fmt.Sprintf("%-8d %s", ed.Cursor + 1, line))
+			} else {
+				ed.Huh(env)
+			}
 		default:
 			i, err := strconv.Atoi(command)
 			if err != nil {
