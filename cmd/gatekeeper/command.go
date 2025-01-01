@@ -178,6 +178,36 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 						}
 						return NewExprInt(time.Now().Year()), nil
 					},
+					"concat": func(context *EvalContext, args []Expr) (Expr, error) {
+						sb := strings.Builder{}
+						for _, arg := range args {
+							result, err := context.EvalExpr(arg)
+							if err != nil {
+								return result, err
+							}
+							switch result.Type {
+							case ExprVoid:
+							case ExprInt: sb.WriteString(strconv.Itoa(result.AsInt))
+							case ExprStr: sb.WriteString(result.AsStr)
+							case ExprFuncall: return Expr{}, fmt.Errorf("`%s` is neither String nor Integer")
+							}
+						}
+						return NewExprStr(sb.String()), nil
+					},
+					"add": func(context *EvalContext, args []Expr) (Expr, error) {
+						sum := 0
+						for _, arg := range args {
+							result, err := context.EvalExpr(arg)
+							if err != nil {
+								return result, err
+							}
+							if result.Type != ExprInt {
+								return Expr{}, fmt.Errorf("%s is not an integer", result.String())
+							}
+							sum += result.AsInt
+						}
+						return NewExprInt(sum), nil
+					},
 					"author": func(context *EvalContext, args []Expr) (Expr, error) {
 						if len(args) > 0 {
 							return Expr{}, fmt.Errorf("Too many arguments");
