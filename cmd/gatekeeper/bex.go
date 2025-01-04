@@ -106,6 +106,53 @@ func trimRunes(runes []rune) []rune {
 
 var EndOfSource = errors.New("EndOfSource")
 
+func parseFuncallArgs(sourceRunes []rune) ([]rune, []Expr, error) {
+	args := []Expr{}
+
+	sourceRunes = trimRunes(sourceRunes)
+	if !(len(sourceRunes) > 0 && sourceRunes[0] == '(') {
+		return sourceRunes, args, errors.New("Expected (")
+	}
+	sourceRunes = sourceRunes[1:]
+
+	sourceRunes = trimRunes(sourceRunes)
+	if len(sourceRunes) <= 0 {
+		return sourceRunes, args, errors.New("Expected )")
+	}
+
+	if sourceRunes[0] == ')' {
+		sourceRunes = sourceRunes[1:]
+		return sourceRunes, args, nil
+	}
+
+	for {
+		restRunes, arg, err := parseExpr(sourceRunes)
+		args = append(args, arg)
+		if err != nil {
+			return restRunes, args, err
+		}
+		sourceRunes = restRunes
+
+		sourceRunes = trimRunes(sourceRunes)
+		if len(sourceRunes) <= 0 {
+			return sourceRunes, args, errors.New("Expected )")
+		}
+
+		if sourceRunes[0] == ')' {
+			sourceRunes = sourceRunes[1:]
+			return sourceRunes, args, nil
+		}
+
+		if sourceRunes[0] != ',' {
+			return sourceRunes, args, errors.New("Expected ,")
+		}
+		sourceRunes = sourceRunes[1:]
+		sourceRunes = trimRunes(sourceRunes)
+	}
+
+	panic("parseFuncallArgs: unreachable")
+}
+
 func parseExpr(sourceRunes []rune) ([]rune, Expr, error) {
 	sourceRunes = trimRunes(sourceRunes)
 	expr := Expr{}
@@ -161,34 +208,17 @@ func parseExpr(sourceRunes []rune) ([]rune, Expr, error) {
 			name, restRunes := spanRunes(sourceRunes, func(x rune) bool {
 				return unicode.IsLetter(x) || unicode.IsDigit(x) || x == '_'
 			})
-			sourceRunes = trimRunes(restRunes)
+			sourceRunes = restRunes
 
 			expr.Type = ExprFuncall
 			expr.AsFuncall.Name = string(name)
 
-			// TODO: something's wrong with the bex parser
-			// It does not parse `say()` and parse `say(` as zero expressions
+			sourceRunes = trimRunes(sourceRunes)
 			if len(sourceRunes) > 0 && sourceRunes[0] == '(' {
-				for {
-					sourceRunes = sourceRunes[1:]
-					restRunes, arg, err := parseExpr(sourceRunes)
-					if err != nil {
-						return restRunes, arg, err
-					}
-					sourceRunes = restRunes
-					expr.AsFuncall.Args = append(expr.AsFuncall.Args, arg)
-
-					sourceRunes = trimRunes(sourceRunes)
-					if len(sourceRunes) <= 0 || sourceRunes[0] != ',' {
-						break
-					}
-				}
-
-				if len(sourceRunes) <= 0 || sourceRunes[0] != ')' {
-					return sourceRunes, expr, errors.New("Expected )")
-				}
-
-				sourceRunes = sourceRunes[1:]
+				restRunes, funcallArgs, err := parseFuncallArgs(sourceRunes)
+				sourceRunes = restRunes
+				expr.AsFuncall.Args = funcallArgs
+				return restRunes, expr, err
 			}
 
 			return sourceRunes, expr, nil
