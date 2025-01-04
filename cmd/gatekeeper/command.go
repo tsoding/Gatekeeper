@@ -178,6 +178,15 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 						}
 						return NewExprInt(time.Now().Year()), nil
 					},
+					"do": func(context *EvalContext, args []Expr) (result Expr, err error) {
+						for _, arg := range args {
+							result, err := context.EvalExpr(arg)
+							if err != nil {
+								return result, err
+							}
+						}
+						return Expr{}, nil
+					},
 					"concat": func(context *EvalContext, args []Expr) (Expr, error) {
 						sb := strings.Builder{}
 						for _, arg := range args {
