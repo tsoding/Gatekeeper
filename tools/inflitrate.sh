@@ -119,7 +119,21 @@ setup_gatekeeper() {
         # It has something to do with $GOPATH and $GOROOT or whatever (I'm not a Go dev, I don't know)
         # Maybe we can utilize this mechanism here somehow.
 
-        git clone https://github.com/tsoding/gatekeeper
+        # TODO(rexim): constant interrupt questions like this do not allow to just start inflitrating and walk away
+        # We should probably introduce some sort of preconfigure test were you can set your preferences
+        read -p 'Clone Gatekeeper source code from the SSH url? [y/n] ' yn
+        while true; do
+            case $yn in
+                [Yy]*)
+                    git clone "git@github.com:tsoding/gatekeeper.git"
+                    break
+                    ;;
+                [Nn]*)
+                    git clone "https://github.com/tsoding/gatekeeper"
+                    break
+                    ;;
+            esac
+        done
     else
         echo "$GATEKEEPER_PREFIX/src/gatekeeper already exists"
     fi
