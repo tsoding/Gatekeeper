@@ -40,6 +40,12 @@ infiltrate-init() {
     setup_postgres
     setup_go
     setup_gatekeeper
+
+    echo "To enter the inflitrated environment do"
+    echo ""
+    echo "    source $GATEKEEPER_PREFIX/inflitrate.sh"
+    echo ""
+    echo "in your bash"
 }
 
 # TODO(rexim): do not try to call sudo if all the necessary dependencies are already installed
@@ -198,39 +204,19 @@ secret-edit() {
 # TODO(rexim): some sort of simple sanity check for all non-"init" commands that the environment was "init"-ed
 # For instance, just check that $GATEKEEPER_PREFIX exists.
 # TODO(rexim): help command that prints all the available subcommands
-# TODO(rexim): we can go even cooler with this whole command system:
-#   - No subcommands
-#   - If you are sourced do env
-#   - Otherwise do init
-case "$1" in
-    "" | "init")
-        infiltrate-init
-        ;;
-    "run")
-        shift
-        $@
-        ;;
-    "env")
-        # Stolen from https://stackoverflow.com/questions/2683279/how-to-detect-if-a-script-is-being-sourced
-        if (return 0 2>/dev/null); then
-            # TODO(rexim): check if we are already inflitrated and maybe say something about that?
-            # I don't really know if it makes sense to even care about user doing `env` while within `env`...
-            set +e              # Do not enable exit-on-error in the user facing environment
-            PS1="[inflitrated] $PS1"
-        else
-            echo "You run this command incorrectly! It must be sourced like this:"
-            echo ""
-            echo "    $ source $0 $1"
-            echo ""
-            echo "This command just lets you have a shell within the environment of the $0 script"
-            exit 1
-        fi
-        ;;
-    *)
-        echo "ERROR: unknown subcommand '$1'"
-        exit 1
-        ;;
-esac
+
+# Stolen from https://stackoverflow.com/questions/2683279/how-to-detect-if-a-script-is-being-sourced
+if (return 0 2>/dev/null); then
+    # TODO(rexim): check if we are already inflitrated and maybe say something about that?
+    # I don't really know if it makes sense to even care about user doing `env` while within `env`...
+    set +e              # Do not enable exit-on-error in the user facing environment
+    # TODO(rexim): print the available commands and just a general help message
+    PS1="[inflitrated] $PS1"
+elif [ -z "$@" ]; then
+    infiltrate-init
+else
+    $@
+fi
 
 # TODO(rexim): subcommand to make/restore backups
 # TODO(rexim): how would you autostart the whole system with this kind of setup?
