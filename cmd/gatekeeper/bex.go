@@ -39,6 +39,21 @@ func NewExprInt(num int) Expr {
 	}
 }
 
+func ExprTypeName(typ ExprType) string {
+	switch typ {
+	case ExprVoid:
+		return "Void"
+	case ExprInt:
+		return "Int"
+	case ExprStr:
+		return "Str"
+	case ExprFuncall:
+		return "Funcall"
+	default:
+		panic("unreachable")
+	}
+}
+
 func (expr *Expr) Dump(level int) {
 	for i := 0; i < level; i += 1 {
 		fmt.Printf("  ");
