@@ -172,6 +172,43 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 						}
 						return NewExprStr(command.Args), nil
 					},
+					"replace": func(context *EvalContext, args[]Expr) (Expr, error) {
+						arity := 3;
+						if len(args) != arity {
+							return Expr{}, fmt.Errorf("replace: Expected %d arguments but got %d", arity, len(args))
+						}
+
+						regExpr, err := context.EvalExpr(args[0])
+						if err != nil {
+							return Expr{}, err
+						}
+						if regExpr.Type != ExprStr {
+							return Expr{}, fmt.Errorf("replace: Argument 1 is expected to be %s, but got %s", ExprTypeName(ExprStr), ExprTypeName(regExpr.Type))
+						}
+
+						srcExpr, err := context.EvalExpr(args[1])
+						if err != nil {
+							return Expr{}, err
+						}
+						if srcExpr.Type != ExprStr {
+							return Expr{}, fmt.Errorf("replace: Argument 2 is expected to be %s, but got %s", ExprTypeName(ExprStr), ExprTypeName(srcExpr.Type))
+						}
+
+						replExpr, err := context.EvalExpr(args[2])
+						if err != nil {
+							return Expr{}, err
+						}
+						if replExpr.Type != ExprStr {
+							return Expr{}, fmt.Errorf("replace: Argument 3 is expected to be %s, but got %s", ExprTypeName(ExprStr), ExprTypeName(replExpr.Type))
+						}
+
+						reg, err := regexp.Compile(regExpr.AsStr);
+						if err != nil {
+							return Expr{}, fmt.Errorf("replace: Could not compile regexp `%s`: %w", regExpr.AsStr, err)
+						}
+
+						return NewExprStr(string(reg.ReplaceAll([]byte(srcExpr.AsStr), []byte(replExpr.AsStr)))), nil
+					},
 					"year": func(context *EvalContext, args []Expr) (Expr, error) {
 						if len(args) > 0 {
 							return Expr{}, fmt.Errorf("Too many arguments");
