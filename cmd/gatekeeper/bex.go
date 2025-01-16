@@ -94,14 +94,17 @@ type Funcall struct {
 
 func (funcall *Funcall) String() string {
 	var result strings.Builder
-	fmt.Fprintf(&result, "%s(", funcall.Name)
-	for i, arg := range funcall.Args {
-		if i > 0 {
-			fmt.Fprintf(&result, ", ")
+	fmt.Fprintf(&result, "%s", funcall.Name)
+	if len(funcall.Args) > 0 {
+		fmt.Fprintf(&result, "(")
+		for i, arg := range funcall.Args {
+			if i > 0 {
+				fmt.Fprintf(&result, ", ")
+			}
+			fmt.Fprintf(&result, "%s", arg.String())
 		}
-		fmt.Fprintf(&result, "%s", arg.String())
+		fmt.Fprintf(&result, ")")
 	}
-	fmt.Fprintf(&result, ")")
 	return result.String()
 }
 

@@ -20,7 +20,8 @@ import (
 
 var (
 	// TODO: make the CommandPrefix configurable from the database, so we can set it per instance
-	CommandPrefix = "[\\$\\!]"
+	// CommandPrefix = "[\\$\\!]"
+	CommandPrefix = "[\\>]"
 	CommandDef = "([a-zA-Z0-9\\-_]+)( +(.*))?"
 	CommandRegexp = regexp.MustCompile("^ *("+CommandPrefix+") *"+CommandDef+"$")
 	CommandNoPrefixRegexp = regexp.MustCompile("^ *"+CommandDef+"$")
@@ -362,6 +363,44 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 							return Expr{}, fmt.Errorf("Can't choose among zero options")
 						}
 						return context.EvalExpr(args[rand.Intn(len(args))])
+					},
+					"let": func(context *EvalContext, args []Expr) (result Expr, err error) {
+						if len(args) <= 0 {
+							return Expr{}, nil
+						}
+						binds := args[:len(args)-1]
+						body := args[len(args)-1]
+						context.PushScope(EvalScope{
+							Funcs: map[string]Func{},
+						})
+						defer context.PopScope()
+						scope := &context.Scopes[len(context.Scopes)-1]
+						for _, bind := range binds {
+							if bind.Type != ExprFuncall {
+								return Expr{}, fmt.Errorf("`%s` is not a Funcall. Bindings must be Funcalls. For example: let(x(34), y(35), say(add(x, y))).", bind.String())
+							}
+							value := Expr{}
+							for _, arg := range bind.AsFuncall.Args {
+								value, err = context.EvalExpr(arg)
+								if err != nil {
+									return Expr{}, err
+								}
+							}
+							_, exists := context.LookUpFunc(bind.AsFuncall.Name)
+							if exists {
+								return Expr{}, fmt.Errorf("Redefinition of the let-binding `%s`", bind.AsFuncall.Name)
+							}
+							scope.Funcs[bind.AsFuncall.Name] = func(context *EvalContext, args []Expr) (Expr, error) {
+								if len(args) > 0 {
+									return Expr{}, fmt.Errorf("Let binding `%s` accepts 0 arguments, but you provided", bind.AsFuncall.Name, len(args))
+								}
+								return value, nil
+							};
+						}
+						if body.Type == ExprFuncall && body.AsFuncall.Name != "do" {
+							return Expr{}, fmt.Errorf("Wrap `%s` in `do(%s)`", body.String(), body.String())
+						}
+						return context.EvalExpr(body)
 					},
 				},
 			},
