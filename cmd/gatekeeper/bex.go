@@ -194,6 +194,9 @@ func parseExpr(sourceRunes []rune) ([]rune, Expr, error) {
 					case '\\':
 						literalRunes = append(literalRunes, '\\')
 						i += 1
+					case '"':
+						literalRunes = append(literalRunes, '"')
+						i += 1
 					default:
 						return sourceRunes[i:], expr, errors.New(fmt.Sprintf("Unknown escape sequence starting with `%c`", sourceRunes[i]))
 					}
