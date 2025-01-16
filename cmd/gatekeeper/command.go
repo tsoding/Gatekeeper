@@ -254,6 +254,33 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 						}
 						return NewExprInt(sum), nil
 					},
+					"sub": func(context *EvalContext, args []Expr) (Expr, error) {
+						if len(args) == 0 {
+							return NewExprInt(0), nil
+						}
+						first, err := context.EvalExpr(args[0])
+						if err != nil {
+							return first, err
+						}
+						if first.Type != ExprInt {
+							return Expr{}, fmt.Errorf("%s is not an integer", first.String())
+						}
+						if len(args) == 1 {
+							return NewExprInt(-first.AsInt), nil
+						}
+						sum := first.AsInt
+						for _, arg := range args[1:] {
+							result, err := context.EvalExpr(arg)
+							if err != nil {
+								return result, err
+							}
+							if result.Type != ExprInt {
+								return Expr{}, fmt.Errorf("%s is not an integer", result.String())
+							}
+							sum -= result.AsInt
+						}
+						return NewExprInt(sum), nil
+					},
 					"author": func(context *EvalContext, args []Expr) (Expr, error) {
 						if len(args) > 0 {
 							return Expr{}, fmt.Errorf("Too many arguments");
