@@ -9,8 +9,10 @@ export GOVER=1.23.4
 export GATEKEEPER_PREFIX="$HOME/Gatekeeper"
 export PGDATA="$GATEKEEPER_PREFIX/data/db" # NOTE(rexim): Tells PostgreSQL where the database is
 export PATH="$GATEKEEPER_PREFIX/pkg/go/bin:$GATEKEEPER_PREFIX/pkg/postgresql-$PGVER/bin/:$PATH"
+export GATEKEEPER_COMMANDS=()
 
-infiltrate-init() {
+GATEKEEPER_COMMANDS+=(setup-everything)
+setup-everything() {
     echo "##################################################################"
     echo "# WARNING! This script is a part of an on going effort to create #"
     echo "# Nyr-style (See https://github.com/Nyr/wireguard-install)       #"
@@ -36,10 +38,10 @@ infiltrate-init() {
     mkdir -vp "$GATEKEEPER_PREFIX/pkg"
     mkdir -vp "$GATEKEEPER_PREFIX/data"
 
-    setup_deps
-    setup_postgres
-    setup_go
-    setup_gatekeeper
+    setup-deps
+    setup-postgres
+    setup-go
+    setup-gatekeeper
 
     echo "To enter the inflitrated environment do"
     echo ""
@@ -49,7 +51,8 @@ infiltrate-init() {
 }
 
 # TODO(rexim): do not try to call sudo if all the necessary dependencies are already installed
-setup_deps() {
+GATEKEEPER_COMMANDS+=(setup-deps)
+setup-deps() {
     . /etc/os-release
     # TODO(rexim): test on different distros via Docker
     case $ID in
@@ -69,7 +72,8 @@ setup_deps() {
     esac
 }
 
-setup_postgres() {
+GATEKEEPER_COMMANDS+=(setup-postgres)
+setup-postgres() {
     if [ ! -e "$GATEKEEPER_PREFIX/pkg/postgresql-$PGVER/" ]; then
         if [ ! -e "$GATEKEEPER_PREFIX/src/postgresql-$PGVER/" ]; then
             cd "$GATEKEEPER_PREFIX/src"
@@ -106,7 +110,8 @@ setup_postgres() {
     fi
 }
 
-setup_go() {
+GATEKEEPER_COMMANDS+=(setup-go)
+setup-go() {
     if [ -e "$GATEKEEPER_PREFIX/pkg/go/" ]; then
         echo "$GATEKEEPER_PREFIX/pkg/go/ already exists"
         return
@@ -117,7 +122,8 @@ setup_go() {
     tar fvx go$GOVER.linux-amd64.tar.gz
 }
 
-setup_gatekeeper() {
+GATEKEEPER_COMMANDS+=(setup-gatekeeper)
+setup-gatekeeper() {
     if [ ! -e "$GATEKEEPER_PREFIX/src/gatekeeper" ]; then
         cd "$GATEKEEPER_PREFIX/src"
 
@@ -126,7 +132,7 @@ setup_gatekeeper() {
         # Maybe we can utilize this mechanism here somehow.
 
         # TODO(rexim): constant interrupt questions like this do not allow to just start inflitrating and walk away
-        # We should probably introduce some sort of preconfigure test were you can set your preferences
+        # We should probably introduce some sort of preconfigure step were you can set your preferences
         read -p 'Clone Gatekeeper source code from the SSH url? [y/n] ' yn
         while true; do
             case $yn in
@@ -164,46 +170,61 @@ END
     fi
 }
 
+GATEKEEPER_COMMANDS+=(db-start)
 db-start() {
     pg_ctl start -l "$GATEKEEPER_PREFIX/data/logs/postgres.log"
 }
 
+GATEKEEPER_COMMANDS+=(db-stop)
 db-stop() {
     pg_ctl stop
 }
 
+GATEKEEPER_COMMANDS+=(db-status)
 db-status() {
     pg_ctl status
 }
 
+GATEKEEPER_COMMANDS+=(db-psql)
 db-psql() {
     . "$GATEKEEPER_PREFIX/data/secret"
     psql "$GATEKEEPER_PGSQL_CONNECTION"
 }
 
+GATEKEEPER_COMMANDS+=(db-logs)
 db-logs() {
     tail -f "$GATEKEEPER_PREFIX/data/logs/postgres.log"
 }
 
+GATEKEEPER_COMMANDS+=(bot-start)
 bot-start() {
     . "$GATEKEEPER_PREFIX/data/secret"
     cd "$GATEKEEPER_PREFIX/src/gatekeeper"
     go build ./cmd/gatekeeper && ./gatekeeper
 }
 
+GATEKEEPER_COMMANDS+=(bot-pull)
 bot-pull() {
     cd "$GATEKEEPER_PREFIX/src/gatekeeper/"
     git fetch --prune origin
     git merge origin/master
 }
 
+GATEKEEPER_COMMANDS+=(secret-edit)
 secret-edit() {
     vim "$GATEKEEPER_PREFIX/data/secret"
 }
 
+GATEKEEPER_COMMANDS+=(cmd-list)
+cmd-list() {
+    echo "Available commands:"
+    for cmd in ${GATEKEEPER_COMMANDS[@]}; do
+        echo "    ${cmd}"
+    done
+}
+
 # TODO(rexim): some sort of simple sanity check for all non-"init" commands that the environment was "init"-ed
 # For instance, just check that $GATEKEEPER_PREFIX exists.
-# TODO(rexim): help command that prints all the available subcommands
 
 # Stolen from https://stackoverflow.com/questions/2683279/how-to-detect-if-a-script-is-being-sourced
 if (return 0 2>/dev/null); then
@@ -211,9 +232,10 @@ if (return 0 2>/dev/null); then
     # I don't really know if it makes sense to even care about user doing `env` while within `env`...
     set +e              # Do not enable exit-on-error in the user facing environment
     # TODO(rexim): print the available commands and just a general help message
+    cmd-list
     PS1="[inflitrated] $PS1"
 elif [ -z "$@" ]; then
-    infiltrate-init
+    setup-everything
 else
     $@
 fi
