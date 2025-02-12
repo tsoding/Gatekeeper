@@ -308,6 +308,27 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 						}
 						return Expr{}, nil
 					},
+					"uppercase": func(context *EvalContext, args []Expr) (Expr, error) {
+						sb := strings.Builder{}
+						for _, arg := range args {
+							result, err := context.EvalExpr(arg)
+							if err != nil {
+								return Expr{}, err
+							}
+
+							switch result.Type {
+							case ExprVoid:
+							case ExprInt:
+								sb.WriteString(strconv.Itoa(result.AsInt))
+							case ExprStr:
+								sb.WriteString(strings.ToUpper(result.AsStr));
+							default:
+								return Expr{}, fmt.Errorf("%s evaluated into %s which is neither Int, Str, nor Void. `urlencode` command cannot display that.", arg.String(), result.String());
+							}
+						}
+
+						return NewExprStr(sb.String()), nil
+					},
 					"urlencode": func(context *EvalContext, args []Expr) (Expr, error) {
 						sb := strings.Builder{}
 						for _, arg := range args {
