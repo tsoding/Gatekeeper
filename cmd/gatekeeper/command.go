@@ -675,6 +675,11 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		// TODO: report "added" instead of "updated" when the command didn't exist but was newly created
 		env.SendMessage(fmt.Sprintf("%s command %s is updated", env.AtAuthor(), name))
 	case "delcmd":
+		if !env.IsAuthorAdmin() {
+			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
+			return
+		}
+
 		regexp.MustCompile("^"+CommandDef+"$")
 		matches := CommandNoPrefixRegexp.FindStringSubmatch(command.Args)
 		if len(matches) == 0 {
