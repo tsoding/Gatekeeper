@@ -175,9 +175,9 @@ func fancyDiscordMessage(peasantMessage string) string {
 	return strings.Join(fancyResult, "")
 }
 
-
 func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, count int64) EvalContext {
 	return EvalContext{
+		EvalPoints: 100,
 		Scopes: []EvalScope{
 			EvalScope{
 				Funcs: map[string]Func{

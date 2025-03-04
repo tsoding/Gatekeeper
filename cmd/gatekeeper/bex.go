@@ -273,6 +273,7 @@ type EvalScope struct {
 
 type EvalContext struct {
 	Scopes []EvalScope
+	EvalPoints int
 }
 
 func (context *EvalContext) LookUpFunc(name string) (Func, bool) {
@@ -300,6 +301,11 @@ func (context *EvalContext) PopScope() {
 type Func = func(context *EvalContext, args []Expr) (Expr, error)
 
 func (context *EvalContext) EvalExpr(expr Expr) (Expr, error) {
+	if context.EvalPoints <= 0 {
+		return Expr{}, errors.New(fmt.Sprintf("This expression is too complicated for you"));
+	}
+	context.EvalPoints -= 1;
+
 	switch expr.Type {
 	case ExprVoid, ExprInt, ExprStr:
 		return expr, nil
