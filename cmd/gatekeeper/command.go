@@ -193,7 +193,7 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 							return Expr{}, err
 						}
 						if result.Type != ExprStr {
-							return Expr{}, fmt.Errorf("%s is not a String", result.String())
+							return Expr{}, fmt.Errorf("%s is not a String. Expected a String in a format YYYY-MM-DD.", result.String())
 						}
 						date, err := time.Parse("2006-01-02", result.AsStr)
 						if err != nil {
