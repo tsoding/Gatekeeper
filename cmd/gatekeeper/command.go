@@ -129,6 +129,29 @@ var CyrilMap = map[rune]rune{
 	'Y': 'У',
 }
 
+
+func fancyRune(chr rune) rune {
+	if chr >= 'A' && chr <= 'Z' {
+		return '𝓐' + chr - 'A'
+	}
+
+	if chr >= 'a' && chr <= 'z' {
+		return '𝓪' + chr - 'a'
+	}
+
+	return chr
+}
+
+func fancyString(peasantString string) string {
+	fancyRunes := make([]rune, len(peasantString))
+
+	for i, peasantRune := range peasantString {
+		fancyRunes[i] = fancyRune(peasantRune)
+	}
+
+	return string(fancyRunes)
+}
+
 func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, count int64) EvalContext {
 	return EvalContext{
 		Scopes: []EvalScope{
@@ -323,7 +346,7 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 							case ExprStr:
 								sb.WriteString(strings.ToUpper(result.AsStr));
 							default:
-								return Expr{}, fmt.Errorf("%s evaluated into %s which is neither Int, Str, nor Void. `urlencode` command cannot display that.", arg.String(), result.String());
+								return Expr{}, fmt.Errorf("%s evaluated into %s which is neither Int, Str, nor Void. `uppercase` command cannot display that.", arg.String(), result.String());
 							}
 						}
 
@@ -421,6 +444,26 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 							return Expr{}, fmt.Errorf("Wrap `%s` in `do(%s)`", body.String(), body.String())
 						}
 						return context.EvalExpr(body)
+					},
+					"fancy": func(context *EvalContext, args []Expr) (result Expr, err error) {
+						sb := strings.Builder{}
+						for _, arg := range args {
+							result, err := context.EvalExpr(arg)
+							if err != nil {
+								return Expr{}, err
+							}
+
+							switch result.Type {
+							case ExprVoid:
+							case ExprInt:
+								sb.WriteString(strconv.Itoa(result.AsInt))
+							case ExprStr:
+								sb.WriteString(fancyString(result.AsStr));
+							default:
+								return Expr{}, fmt.Errorf("%s evaluated into %s which is neither Int, Str, nor Void. `fancy` command cannot display that.", arg.String(), result.String());
+							}
+						}
+						return NewExprStr(sb.String()), nil
 					},
 				},
 			},
