@@ -152,7 +152,7 @@ func fancyString(peasantString string) string {
 	return string(fancyRunes)
 }
 
-var discordEmojiRegex = regexp.MustCompile(`(<:[a-zA-Z_]+:[0-9]+>)`)
+var discordEmojiRegex = regexp.MustCompile(`(<:[a-zA-Z_0-9]+:[0-9]+>)`)
 
 func fancyDiscordMessage(peasantMessage string) string {
 	peasantEmojis := discordEmojiRegex.FindAllString(peasantMessage, -1)
