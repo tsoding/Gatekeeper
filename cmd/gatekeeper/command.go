@@ -152,6 +152,30 @@ func fancyString(peasantString string) string {
 	return string(fancyRunes)
 }
 
+var discordEmojiRegex = regexp.MustCompile(`(<:[a-zA-Z_]+:[0-9]+>)`)
+
+func fancyDiscordMessage(peasantMessage string) string {
+	peasantEmojis := discordEmojiRegex.FindAllString(peasantMessage, -1)
+	peasantNonEmojis := discordEmojiRegex.Split(peasantMessage, -1)
+
+	i, j := 0, 0
+
+	fancyResult := []string{}
+
+	for i < len(peasantNonEmojis) {
+		fancyResult = append(fancyResult, fancyString(peasantNonEmojis[i]))
+		i++
+
+		if j < len(peasantEmojis) {
+			fancyResult = append(fancyResult, peasantEmojis[j])
+			j++
+		}
+	}
+
+	return strings.Join(fancyResult, "")
+}
+
+
 func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, count int64) EvalContext {
 	return EvalContext{
 		Scopes: []EvalScope{
@@ -458,7 +482,11 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 							case ExprInt:
 								sb.WriteString(strconv.Itoa(result.AsInt))
 							case ExprStr:
-								sb.WriteString(fancyString(result.AsStr));
+								if env.AsDiscord() == nil {
+									sb.WriteString(fancyString(result.AsStr));
+								} else {
+									sb.WriteString(fancyDiscordMessage(result.AsStr));
+								}
 							default:
 								return Expr{}, fmt.Errorf("%s evaluated into %s which is neither Int, Str, nor Void. `fancy` command cannot display that.", arg.String(), result.String());
 							}
