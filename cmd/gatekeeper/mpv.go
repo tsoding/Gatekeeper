@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"time"
+	"encoding/json"
 )
 
 type MpvMessage struct {
@@ -22,23 +23,24 @@ func SendMessage(tw *TwitchConn, message string) {
 
 func connectMpvControl(mpvIpcAddress string, tw *TwitchConn) {
 	conn, err := net.Dial("tcp", mpvIpcAddress);
-
 	if err != nil {
 		log.Printf("MPV: Could not connect to %s: %s\n", mpvIpcAddress, err);
-		return;			// TODO: reconnect on error
+		return;
 	}
+	defer conn.Close()
 
 	log.Printf("MPV: Successfully connected to %s", mpvIpcAddress);
 
-	var buf [1024]byte;
+	var root interface{}
+	decoder := json.NewDecoder(conn)
+
 	for {
-		n, err := conn.Read(buf[:])
+		err := decoder.Decode(&root)
 		if err != nil {
 			log.Printf("MPV: Could not read from %s: %s\n", mpvIpcAddress, err);
 			return;
 		}
-
-		SendMessage(tw, string(buf[:n]));
+		log.Println(root);
 	}
 }
 
