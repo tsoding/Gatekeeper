@@ -20,12 +20,21 @@ func SendMessage(tw *TwitchConn, message string) {
 	}
 }
 
-func listenToMpvEvents(conn net.Conn, tw *TwitchConn) {
+func connectMpvControl(mpvIpcAddress string, tw *TwitchConn) {
+	conn, err := net.Dial("tcp", mpvIpcAddress);
+
+	if err != nil {
+		log.Printf("MPV: Could not connect to %s: %s\n", mpvIpcAddress, err);
+		return;			// TODO: reconnect on error
+	}
+
+	log.Printf("MPV: Successfully connected to %s", mpvIpcAddress);
+
 	var buf [1024]byte;
 	for {
 		n, err := conn.Read(buf[:])
 		if err != nil {
-			log.Printf("MPV: Could not read from %s: %s\n", conn.RemoteAddr(), err);
+			log.Printf("MPV: Could not read from %s: %s\n", mpvIpcAddress, err);
 			return;
 		}
 
@@ -44,17 +53,7 @@ func startMpvControl(tw *TwitchConn) (chan MpvMessage, bool) {
 
 	go func() {
 		for {
-			conn, err := net.Dial("tcp", mpvIpcAddress);
-
-			if err != nil {
-				log.Printf("MPV: Could not connect to %s: %s\n", mpvIpcAddress, err);
-				return;			// TODO: reconnect on error
-			}
-
-			log.Printf("MPV: Successfully connected to %s", mpvIpcAddress);
-
-			listenToMpvEvents(conn, tw);
-
+			connectMpvControl(mpvIpcAddress, tw);
 			time.Sleep(5*time.Second)
 		}
 	}();
