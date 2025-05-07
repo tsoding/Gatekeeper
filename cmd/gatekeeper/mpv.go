@@ -10,6 +10,16 @@ type MpvMessage struct {
 	track string
 }
 
+func SendMessage(tw *TwitchConn, message string) {
+	message = ". "+FilterTrailingForbidden(message);
+	msg := IrcMsg{Name: IrcCmdPrivmsg, Args: []string{TwitchIrcChannel, message}}
+	err := msg.Send(tw.Conn)
+	if err != nil {
+		log.Println("Error sending Twitch message \"%s\" for channel %s: %s", message, TwitchIrcChannel, err)
+	}
+}
+
+
 func startMpvControl(tw *TwitchConn) (chan MpvMessage, bool) {
 	mpvIpcAddress := os.Getenv("GATEKEEPER_MPV_IPC_ADDRESS");
 	if mpvIpcAddress == "" {
@@ -37,7 +47,7 @@ func startMpvControl(tw *TwitchConn) (chan MpvMessage, bool) {
 				return;
 			}
 
-			log.Printf("MPV: Message: %s\n", string(buf[:n]))
+			SendMessage(tw, string(buf[:n]));
 		}
 	}();
 
