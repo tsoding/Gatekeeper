@@ -27,6 +27,8 @@ func startMpvControl(tw *TwitchConn) (chan MpvMessage, bool) {
 			return;			// TODO: reconnect on error
 		}
 
+		log.Printf("MPV: Successfully connected to %s", mpvIpcAddress);
+
 		var buf [1024]byte;
 		for {
 			n, err := conn.Read(buf[:])
@@ -35,7 +37,7 @@ func startMpvControl(tw *TwitchConn) (chan MpvMessage, bool) {
 				return;
 			}
 
-			log.Printf("%s\n", string(buf[:n]))
+			log.Printf("MPV: Message: %s\n", string(buf[:n]))
 		}
 	}();
 
