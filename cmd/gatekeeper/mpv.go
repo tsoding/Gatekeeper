@@ -4,6 +4,7 @@ import (
 	"os"
 	"log"
 	"net"
+	"time"
 )
 
 type MpvMessage struct {
@@ -19,6 +20,18 @@ func SendMessage(tw *TwitchConn, message string) {
 	}
 }
 
+func listenToMpvEvents(conn net.Conn, tw *TwitchConn) {
+	var buf [1024]byte;
+	for {
+		n, err := conn.Read(buf[:])
+		if err != nil {
+			log.Printf("MPV: Could not read from %s: %s\n", conn.RemoteAddr(), err);
+			return;
+		}
+
+		SendMessage(tw, string(buf[:n]));
+	}
+}
 
 func startMpvControl(tw *TwitchConn) (chan MpvMessage, bool) {
 	mpvIpcAddress := os.Getenv("GATEKEEPER_MPV_IPC_ADDRESS");
@@ -30,24 +43,19 @@ func startMpvControl(tw *TwitchConn) (chan MpvMessage, bool) {
 	msgs := make(chan MpvMessage);
 
 	go func() {
-		conn, err := net.Dial("tcp", mpvIpcAddress);
-
-		if err != nil {
-			log.Printf("MPV: Could not connect to %s: %s\n", mpvIpcAddress, err);
-			return;			// TODO: reconnect on error
-		}
-
-		log.Printf("MPV: Successfully connected to %s", mpvIpcAddress);
-
-		var buf [1024]byte;
 		for {
-			n, err := conn.Read(buf[:])
+			conn, err := net.Dial("tcp", mpvIpcAddress);
+
 			if err != nil {
-				log.Printf("MPV: Could not read from %s: %s\n", mpvIpcAddress, err);
-				return;
+				log.Printf("MPV: Could not connect to %s: %s\n", mpvIpcAddress, err);
+				return;			// TODO: reconnect on error
 			}
 
-			SendMessage(tw, string(buf[:n]));
+			log.Printf("MPV: Successfully connected to %s", mpvIpcAddress);
+
+			listenToMpvEvents(conn, tw);
+
+			time.Sleep(5*time.Second)
 		}
 	}();
 
