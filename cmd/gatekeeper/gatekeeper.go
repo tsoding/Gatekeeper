@@ -37,6 +37,12 @@ func main() {
 		defer tw.Close()
 	}
 
+	// MPV //////////////////////////////
+	_, ok = startMpvControl(tw);
+	if !ok {
+		log.Println("Could not start the MPV Control");
+	}
+
 	// Wait here until CTRL-C or other term signal is received.
 	log.Println("Bot is now running.  Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
