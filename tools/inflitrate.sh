@@ -158,7 +158,7 @@ setup-gatekeeper() {
 #export GATEKEEPER_TWITCH_IRC_NICK="" # Twitch Login
 #export GATEKEEPER_TWITCH_IRC_PASS="" # Twitch Password https://twitchapps.com/tmi/
 export GATEKEEPER_PGSQL_CONNECTION="postgres://gatekeeper@localhost:5432/gatekeeper?sslmode=disable" # PostgreSQL connection URL https://www.postgresql.org/docs/current/libpq-connect.html#id-1.7.3.8.3.6
-#export GATEKEEPER_MPV_IPC_ADDRESS="127.0.0.1:6969" # Address of the MPV control server
+#export GATEKEEPER_MPV_IPC_ADDRESS="127.0.0.1:8080" # Address of the MPV control server
 END
     else
         echo "$GATEKEEPER_PREFIX/data/secret already exists"

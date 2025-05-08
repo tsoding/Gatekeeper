@@ -17,7 +17,7 @@ void usage(void)
 int main(int argc, char **argv)
 {
     char **address = flag_str("a", "127.0.0.1", "Address of the server");
-    size_t *port = flag_size("p", 6969, "Port of the server");
+    size_t *port = flag_size("p", 8080, "Port of the server");
     bool *help = flag_bool("help", false, "Print this help message");
 
     if (!flag_parse(argc, argv)) {
