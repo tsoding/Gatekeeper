@@ -212,7 +212,12 @@ bot-pull() {
 
 GATEKEEPER_COMMANDS+=(secret-edit)
 secret-edit() {
-    read -p "WARNING! You are about to show sensitive information on the screen! ^C to cancel"
+    echo "#######################################################################"
+    echo "# WARNING! You are about to show sensitive information on the screen! #"
+    echo "# WARNING! You are about to show sensitive information on the screen! #"
+    echo "# WARNING! You are about to show sensitive information on the screen! #"
+    echo "#######################################################################"
+    read -p "^C to cancel"
     vim "$GATEKEEPER_PREFIX/data/secret"
 }
 
