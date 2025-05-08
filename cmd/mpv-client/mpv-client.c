@@ -50,7 +50,7 @@ int main(int argc, char **argv)
     inet_pton(AF_INET, *address, &server_address.sin_addr);
 
     if (connect(client, (const struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
-        fprintf(stderr, "ERROR: could not connect to %s: %s\n", *address, strerror(errno));
+        fprintf(stderr, "ERROR: could not connect to %s:%zu: %s\n", *address, *port, strerror(errno));
         return 1;
     }
 
