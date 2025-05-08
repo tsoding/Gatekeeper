@@ -655,9 +655,9 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			return;
 		}
 
-		msg := twitchEnv.LastMpvSong
-		if msg != nil {
-			env.SendMessage(env.AtAuthor() + " " + fmt.Sprintf("🎶 🎵 Last Song: \"%s\" by %s 🎵 🎶", msg.title, msg.artist))
+		song := LastSongPlayed(db)
+		if song != nil {
+			env.SendMessage(env.AtAuthor() + " " + fmt.Sprintf("🎶 🎵 Last Song: \"%s\" by %s 🎵 🎶", song.title, song.artist))
 		} else {
 			env.SendMessage(env.AtAuthor() + " No song has been played so far")
 		}

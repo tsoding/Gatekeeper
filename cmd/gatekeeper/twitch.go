@@ -33,7 +33,6 @@ type TwitchEnvironment struct {
 	AuthorHandle string
 	Conn *tls.Conn
 	Channel string
-	LastMpvSong *MpvSong
 }
 
 func (env *TwitchEnvironment) AsDiscord() *DiscordEnvironment {
@@ -79,8 +78,7 @@ type TwitchConn struct {
 	Quit chan int
 	Incoming chan IrcMsg
 	IncomingQuit chan int
-	Mpv chan *MpvSong
-	LastMpvSong *MpvSong
+	Mpv chan MpvSong
 }
 
 func (conn *TwitchConn) Close() {
@@ -124,7 +122,7 @@ func granum(amount int, singular string, plural string) string {
 	return fmt.Sprintf("%d %s", amount, plural)
 }
 
-func startTwitch(db *sql.DB, mpv chan *MpvSong) (*TwitchConn, bool) {
+func startTwitch(db *sql.DB, mpv chan MpvSong) (*TwitchConn, bool) {
 	twitchConn := TwitchConn{
 		Quit: make(chan int),
 		Incoming: make(chan IrcMsg),
@@ -209,14 +207,14 @@ func startTwitch(db *sql.DB, mpv chan *MpvSong) (*TwitchConn, bool) {
 				case <-twitchConn.IncomingQuit:
 					twitchConn.State = TwitchConnect
 					continue
-				case msg := <-twitchConn.Mpv:
+				case song := <-twitchConn.Mpv:
 					tw := TwitchEnvironment{
 						AuthorHandle: "",
 						Conn: twitchConn.Conn,
 						Channel: TwitchIrcChannel,
 					}
-					twitchConn.LastMpvSong = msg;
-					tw.SendMessage(fmt.Sprintf("🎶 🎵 Currently Playing: \"%s\" by %s 🎵 🎶", msg.title, msg.artist));
+					LogMpvSong(db, song)
+					tw.SendMessage(fmt.Sprintf("🎶 🎵 Currently Playing: \"%s\" by %s 🎵 🎶", song.title, song.artist));
 				case msg := <-twitchConn.Incoming:
 					switch msg.Name {
 					// TODO: Handle RECONNECT command
@@ -252,7 +250,6 @@ func startTwitch(db *sql.DB, mpv chan *MpvSong) (*TwitchConn, bool) {
 							AuthorHandle: msg.Nick(),
 							Conn: twitchConn.Conn,
 							Channel: TwitchIrcChannel,
-							LastMpvSong: twitchConn.LastMpvSong,
 						}
 
 						EvalCommand(db, command, env);

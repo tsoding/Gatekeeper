@@ -8,6 +8,7 @@ import (
 	_"time"
 	"encoding/json"
 	"strings"
+	"database/sql"
 )
 
 type MpvSong struct {
@@ -15,10 +16,36 @@ type MpvSong struct {
 	artist string
 }
 
+func LogMpvSong(db *sql.DB, song MpvSong) {
+	_, err := db.Exec("INSERT INTO Song_Log (artist, title) VALUES ($1, $2)", song.artist, song.title);
+	if err != nil {
+		log.Println("ERROR: LogMpvSong: could not insert element %#v: %s", song, err);
+		return
+	}
+}
+
+func LastSongPlayed(db *sql.DB) *MpvSong {
+	row := db.QueryRow("select artist, title from Song_Log order by startedAt desc limit 1")
+	var artist string
+	var title string
+	err := row.Scan(&artist, &title)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		log.Printf("MPV: Could not query last played song: %s", err)
+		return nil
+	}
+	return &MpvSong{
+		artist: artist,
+		title: title,
+	}
+}
+
 type Object = map[string]interface{}
 type Array = []interface{}
 
-func startMpvControlThread(conn net.Conn, mpvIpcAddress string, msgs chan *MpvSong) {
+func startMpvControlThread(conn net.Conn, mpvIpcAddress string, msgs chan MpvSong) {
 	defer conn.Close()
 
 	var root interface{}
@@ -49,7 +76,7 @@ func startMpvControlThread(conn net.Conn, mpvIpcAddress string, msgs chan *MpvSo
 				case "artist": artist = v.(string);
 				}
 			}
-			msgs <- &MpvSong{
+			msgs <- MpvSong{
 				title: title,
 				artist: artist,
 			}
@@ -60,8 +87,8 @@ func startMpvControlThread(conn net.Conn, mpvIpcAddress string, msgs chan *MpvSo
 	}
 }
 
-func startMpvControl() (chan *MpvSong, bool) {
-	msgs := make(chan *MpvSong);
+func startMpvControl() (chan MpvSong, bool) {
+	msgs := make(chan MpvSong);
 
 	mpvIpcAddress := os.Getenv("GATEKEEPER_MPV_IPC_ADDRESS");
 	if mpvIpcAddress == "" {
@@ -75,11 +102,13 @@ func startMpvControl() (chan *MpvSong, bool) {
 		return msgs, false
 	}
 
+	log.Printf("MPV: listening to %s", mpvIpcAddress);
+
 	go func() {
 		for {
 			conn, err := l.Accept();
 			if err != nil {
-				log.Printf("MPV: failed to listen to %s: %s", mpvIpcAddress, err);
+				log.Printf("MPV: failed to accept connection on %s: %s", mpvIpcAddress, err);
 				return;
 			}
 
