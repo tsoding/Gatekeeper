@@ -16,7 +16,7 @@ void usage(void)
 
 int main(int argc, char **argv)
 {
-    char **address = flag_str("a", NULL, "Address of the server");
+    char **address = flag_str("a", "127.0.0.1", "Address of the server");
     size_t *port = flag_size("p", 6969, "Port of the server");
     bool *help = flag_bool("help", false, "Print this help message");
 
@@ -50,21 +50,21 @@ int main(int argc, char **argv)
     inet_pton(AF_INET, *address, &server_address.sin_addr);
 
     if (connect(client, (const struct sockaddr*)&server_address, sizeof(server_address)) < 0) {
-        fprintf(stderr, "ERROR: could not connect %s: %s\n", *address, strerror(errno));
+        fprintf(stderr, "ERROR: could not connect to %s: %s\n", *address, strerror(errno));
         return 1;
     }
 
     // NOTE: This leaks a bit of memory in the child process.
     // But do we actually care? It's a one off leak anyway...
-    Nob_Cmd cmd_null = {0};
-    nob_cmd_append(&cmd_null, "mpv", temp_sprintf("--input-ipc-client=fd://%d", client));
-    nob_da_append_many(&cmd_null, flag_rest_argv(), flag_rest_argc());
-    nob_cmd_append(&cmd_null, NULL);
+    Cmd cmd_null = {0};
+    cmd_append(&cmd_null, "mpv", temp_sprintf("--input-ipc-client=fd://%d", client));
+    da_append_many(&cmd_null, flag_rest_argv(), flag_rest_argc());
+    cmd_append(&cmd_null, NULL);
 
     if (execvp(cmd_null.items[0], (char * const*) cmd_null.items) < 0) {
-        nob_log(NOB_ERROR, "Could not exec child process for %s: %s", cmd_null.items[0], strerror(errno));
+        nob_log(ERROR, "Could not exec child process for %s: %s", cmd_null.items[0], strerror(errno));
         return 1;
     }
 
-    NOB_UNREACHABLE("mpv-client");
+    UNREACHABLE("mpv-client");
 }
