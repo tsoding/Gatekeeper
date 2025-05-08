@@ -33,6 +33,7 @@ type TwitchEnvironment struct {
 	AuthorHandle string
 	Conn *tls.Conn
 	Channel string
+	LastMpvSong *MpvSong
 }
 
 func (env *TwitchEnvironment) AsDiscord() *DiscordEnvironment {
@@ -51,8 +52,8 @@ func (env *TwitchEnvironment) AtAuthor() string {
 	if len(env.AuthorHandle) > 0 {
 		return "@"+env.AuthorHandle
 	}
-	// TODO: in which situations this can be empty?
-	// it should be documented here
+	// The author could be empty if the environment was created not by 
+	// a command. For instance, MPV message handler
 	return ""
 }
 
@@ -78,6 +79,8 @@ type TwitchConn struct {
 	Quit chan int
 	Incoming chan IrcMsg
 	IncomingQuit chan int
+	Mpv chan *MpvSong
+	LastMpvSong *MpvSong
 }
 
 func (conn *TwitchConn) Close() {
@@ -121,11 +124,12 @@ func granum(amount int, singular string, plural string) string {
 	return fmt.Sprintf("%d %s", amount, plural)
 }
 
-func startTwitch(db *sql.DB) (*TwitchConn, bool) {
+func startTwitch(db *sql.DB, mpv chan *MpvSong) (*TwitchConn, bool) {
 	twitchConn := TwitchConn{
 		Quit: make(chan int),
 		Incoming: make(chan IrcMsg),
 		IncomingQuit: make(chan int),
+		Mpv: mpv,
 	}
 
 	twitchConn.Nick = os.Getenv("GATEKEEPER_TWITCH_IRC_NICK");
@@ -205,6 +209,14 @@ func startTwitch(db *sql.DB) (*TwitchConn, bool) {
 				case <-twitchConn.IncomingQuit:
 					twitchConn.State = TwitchConnect
 					continue
+				case msg := <-twitchConn.Mpv:
+					tw := TwitchEnvironment{
+						AuthorHandle: "",
+						Conn: twitchConn.Conn,
+						Channel: TwitchIrcChannel,
+					}
+					twitchConn.LastMpvSong = msg;
+					tw.SendMessage(fmt.Sprintf("🎶 🎵 Currently Playing: \"%s\" by %s 🎵 🎶", msg.title, msg.artist));
 				case msg := <-twitchConn.Incoming:
 					switch msg.Name {
 					// TODO: Handle RECONNECT command
@@ -240,6 +252,7 @@ func startTwitch(db *sql.DB) (*TwitchConn, bool) {
 							AuthorHandle: msg.Nick(),
 							Conn: twitchConn.Conn,
 							Channel: TwitchIrcChannel,
+							LastMpvSong: twitchConn.LastMpvSong,
 						}
 
 						EvalCommand(db, command, env);

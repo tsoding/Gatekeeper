@@ -647,6 +647,20 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		}
 
 		env.SendMessage(env.AtAuthor() + " Done 🙂")
+	case "song":
+		twitchEnv := env.(*TwitchEnvironment)
+		if twitchEnv == nil {
+			// TODO: make !song available on Discord
+			env.SendMessage(env.AtAuthor() + " this command is only available on Twitch for now")
+			return;
+		}
+
+		msg := twitchEnv.LastMpvSong
+		if msg != nil {
+			env.SendMessage(env.AtAuthor() + " " + fmt.Sprintf("🎶 🎵 Last Song: \"%s\" by %s 🎵 🎶", msg.title, msg.artist))
+		} else {
+			env.SendMessage(env.AtAuthor() + " No song has been played so far")
+		}
 	case "search":
 		if !env.IsAuthorAdmin() {
 			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())

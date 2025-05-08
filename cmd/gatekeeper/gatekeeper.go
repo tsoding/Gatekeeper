@@ -29,18 +29,18 @@ func main() {
 		defer dg.Close();
 	}
 
+	// MPV //////////////////////////////
+	mpvMsgs, ok := startMpvControl();
+	if !ok {
+		log.Println("Could not start the MPV Control");
+	}
+
 	// Twitch //////////////////////////////
-	tw, ok := startTwitch(db);
+	tw, ok := startTwitch(db, mpvMsgs);
 	if !ok {
 		log.Println("Could not open Twitch connection");
 	} else {
 		defer tw.Close()
-	}
-
-	// MPV //////////////////////////////
-	_, ok = startMpvControl(tw);
-	if !ok {
-		log.Println("Could not start the MPV Control");
 	}
 
 	// Wait here until CTRL-C or other term signal is received.
