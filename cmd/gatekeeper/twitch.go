@@ -43,7 +43,7 @@ func (env *TwitchEnvironment) AtAdmin() string {
 	return "@"+BotAdminTwitchHandle
 }
 
-func (env *TwitchEnvironment) AuthorUserId() string {
+func (env *TwitchEnvironment) UniversalPlatformAgnosticUserID() string {
 	return "twitch#"+env.AuthorHandle
 }
 
@@ -51,7 +51,7 @@ func (env *TwitchEnvironment) AtAuthor() string {
 	if len(env.AuthorHandle) > 0 {
 		return "@"+env.AuthorHandle
 	}
-	// The author could be empty if the environment was created not by 
+	// The author could be empty if the environment was created not by
 	// a command. For instance, MPV message handler
 	return ""
 }

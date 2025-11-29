@@ -77,7 +77,7 @@ func (env *DiscordEnvironment) AtAdmin() string {
 	return AtID(AdminID)
 }
 
-func (env *DiscordEnvironment) AuthorUserId() string {
+func (env *DiscordEnvironment) UniversalPlatformAgnosticUserID() string {
 	return "discord#"+env.m.Author.ID
 }
 
