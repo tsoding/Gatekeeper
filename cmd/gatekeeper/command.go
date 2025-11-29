@@ -24,6 +24,10 @@ var (
 	CommandDef = "([a-zA-Z0-9\\-_]+)( +(.*))?"
 	CommandRegexp = regexp.MustCompile("^ *("+CommandPrefix+") *"+CommandDef+"$")
 	CommandNoPrefixRegexp = regexp.MustCompile("^ *"+CommandDef+"$")
+	ReminderDurationRegexpStr = `(\d+)(s|m|h|d|y)`
+	ReminderArgsRegexpStr = `^((\d+(s|m|h|d|y))+) +(.+)$`
+	ReminderDurationRegexp = regexp.MustCompile(ReminderDurationRegexpStr)
+	ReminderArgsRegexp = regexp.MustCompile(ReminderArgsRegexpStr)
 	Commit        = func() string {
 		if info, ok := debug.ReadBuildInfo(); ok {
 			for _, setting := range info.Settings {
@@ -767,6 +771,43 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		}
 		// TODO: report "added" instead of "updated" when the command didn't exist but was newly created
 		env.SendMessage(fmt.Sprintf("%s command %s is updated", env.AtAuthor(), name))
+	case "addreminder":
+		args := ReminderArgsRegexp.FindStringSubmatch(command.Args)
+		if (args == nil) {
+			env.SendMessage(env.AtAuthor() + " Coudn't parse the reminder arguments, expected `" + ReminderArgsRegexpStr + "`")
+			return
+		}
+
+		durationStr := args[1]
+		message := args[4]
+
+		delay := time.Duration(0)
+		for _, match := range ReminderDurationRegexp.FindAllStringSubmatch(durationStr, -1) {
+			ammount, err := strconv.ParseInt(match[1], 10, 64)
+			if err != nil {
+				log.Println("Reminder duration parsing: ", err)
+				env.SendMessage(env.AtAuthor() + " Delay ammount overflows." + "\n")
+				return
+			}
+			unit := match[2]
+
+			d, ok := MulDurationSafe(ammount, UnitDurations[unit])
+			if !ok {
+				env.SendMessage(env.AtAuthor() + "Duration specified caused an overflow.")
+				return
+			}
+
+			delay, ok = AddDurationSafe(delay, d)
+			if !ok {
+				env.SendMessage(env.AtAuthor() + "Duration specified caused an overflow.")
+				return
+			}
+		}
+
+		SetReminder(env, Reminder{
+			Delay:   delay,
+			Message: message,
+		})
 	case "delcmd":
 		if !env.IsAuthorAdmin() {
 			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
