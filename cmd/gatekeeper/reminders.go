@@ -1,80 +1,237 @@
 package main
 
 import (
-	"context"
-	"sync"
 	"time"
 	"log"
 	"math"
+	"database/sql"
+	"github.com/bwmarrin/discordgo"
+	"github.com/lib/pq"
+	"fmt"
+	"strconv"
+	"strings"
 )
 
+const BotShrineChannelId = "555128235869077506"
+const ReminderSize = 256
+const MaxRemindersCount = 5
+
 type Reminder struct {
-	Message string
-	Delay   time.Duration
+	Id       int64
+	UserId   string
+	Message  string
+	RemindAt time.Time
 }
+
+type DiscordSession interface {
+	ChannelMessageSend(channelID string, content string) (*discordgo.Message, error)
+}
+
+func PollOverdueReminders(db *sql.DB, dg DiscordSession) {
+	go func() {
+		for {
+			reminders, err := QueryOverdueReminders(db)
+			if err != nil {
+				log.Println("Error querying overdue reminders", err)
+				continue
+			}
+
+			successfullyFiredReminders := []int64{}
+			for _, reminder := range reminders {
+				_, err := dg.ChannelMessageSend(BotShrineChannelId, AtID(reminder.UserId) + " " + reminder.Message)
+				if err != nil {
+					log.Printf("Error during sending discord message\n", err)
+					continue
+				}
+				successfullyFiredReminders = append(successfullyFiredReminders, reminder.Id)
+			}
+
+			_, err = db.Exec("DELETE FROM Reminders WHERE id = ANY($1);", pq.Array(successfullyFiredReminders));
+			if (err != nil) {
+				log.Println("Error:", err)
+			}
+
+			time.Sleep(1 * time.Minute)
+		}
+	}()
+}
+
+var Units = []string{"y", "d", "h", "m", "s"}
 
 var UnitDurations = map[string]time.Duration{
 	"s": time.Second,
 	"m": time.Minute,
 	"h": time.Hour,
 	"d": 24 * time.Hour,
-	"y": time.Duration(float64(365.2425) * float64(24 * time.Hour)),
+	"y": time.Duration(float64(365) * float64(24 * time.Hour)),
 }
 
-type UserId = string
-
-var mutex = &sync.Mutex{}
-var reminders = map[UserId]context.CancelFunc{}
-
-func SetReminder(env CommandEnvironment, r Reminder) {
-	if !validateReminder(env, r) {
-		return
+func DurationToString(d time.Duration) string {
+	if d == 0 {
+		return "0s"
 	}
 
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	cancelOldReminder, ok := reminders[env.AuthorUserId()]
-	if ok {
-		cancelOldReminder()
+	neg := d < 0
+	if neg {
+		d = -d
 	}
 
-	reminders[env.AuthorUserId()] = cancel
+	var parts []string
+	rem := d
 
-	go func() {
-		timer := time.NewTimer(r.Delay)
-		defer timer.Stop()
-
-		select {
-		case <-timer.C:
-			env.SendMessage(env.AtAuthor() + " " + r.Message + "\n")
-		case <-ctx.Done():
-			env.SendMessage(env.AtAuthor() + " Old reminder has been canceled: '" + r.Message + "'")
+	for _, unit := range Units {
+		unitDur := UnitDurations[unit]
+		if rem >= unitDur {
+			n := rem / unitDur
+			rem = rem % unitDur
+			parts = append(parts, fmt.Sprintf("%d%s", n, unit))
 		}
-	}()
+	}
 
-	env.SendMessage(env.AtAuthor() + " Reminder has been successfully set to fire in " + r.Delay.String() + ".")
+	if len(parts) == 0 {
+		parts = append(parts, "0s")
+	}
+
+	res := strings.Join(parts, "")
+	if neg {
+		res = "-" + res
+	}
+	return res
 }
 
-func validateReminder(env CommandEnvironment, r Reminder) bool {
-	if (r.Delay < 1 * time.Second) {
-		log.Println("Smol reminder delay: " + r.Delay.String())
-		env.SendMessage(env.AtAuthor() + " Delay specified has an unexpected duration, check logs." + "\n")
-		return false
+func ParseDurationStr(durationStr string) (time.Duration, error) {
+	delay := time.Duration(0)
+
+	for _, match := range ReminderDurationRegexp.FindAllStringSubmatch(durationStr, -1) {
+		ammount, err := strconv.ParseInt(match[1], 10, 64)
+		if err != nil {
+			log.Println("Reminder duration parsing: ", err)
+			return 0, fmt.Errorf("Delay ammount overflows.")
+		}
+		unit := match[2]
+
+		d, ok := MulDurationSafe(ammount, UnitDurations[unit])
+		if !ok {
+			return 0, fmt.Errorf("Delay ammount overflows.")
+		}
+
+		delay, ok = AddDurationSafe(delay, d)
+		if !ok {
+			return 0, fmt.Errorf("Duration specified caused an overflow.")
+		}
 	}
 
-	if (env.IsAuthorAdmin()) {
-		return true
+	return delay, nil
+}
+
+func SetReminder(db *sql.DB, r Reminder) error {
+	if err := ValidateReminder(r); err != nil {
+		return err
 	}
 
-	if (len(r.Message) > 255) {
-		env.SendMessage(env.AtAuthor() + " Message body must be under 255 characters long" + "\n")
-		return false
+	c, err := CountUserReminders(db, r.UserId)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("There has been an error adding the reminder, please ask the admin to check the logs.")
 	}
 
-	return true
+	if c >= MaxRemindersCount {
+		return fmt.Errorf("You have exeeded your max reminders count (you may have %v).", MaxRemindersCount)
+	}
+
+	if err := InsertReminder(db, r); err != nil {
+		log.Println(err)
+		return fmt.Errorf("There has been an error adding the reminder, please ask the admin to check the logs.")
+	}
+
+	return nil
+}
+
+func DelReminder(db *sql.DB, id int64) error {
+	res, err := db.Exec("DELETE FROM Reminders WHERE id = $1", id)
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("Something went wrong, please ask the admin to check the logs.")
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		log.Println(err)
+		return fmt.Errorf("There has been an error deleting the reminder, please ask the admin to check the logs.")
+	}
+	if affected == 0 {
+		return fmt.Errorf("Reminder not found")
+	}
+	return nil
+}
+
+func QueryOverdueReminders(db *sql.DB) ([]Reminder, error) {
+	rows, err := db.Query("select id, user_id, message, remind_at from Reminders where remind_at < $1", time.Now())
+	if err != nil {
+		return nil, err
+	}
+
+	reminders := []Reminder{}
+	for rows.Next() {
+		r := Reminder{}
+    	if err := rows.Scan(&r.Id, &r.UserId, &r.Message, &r.RemindAt); err != nil {
+			return nil, err
+		}
+		reminders = append(reminders, r)
+	}
+
+	return reminders, nil
+}
+
+func QueryUserReminders(userId string, db *sql.DB) ([]Reminder, error) {
+	rows, err := db.Query("select id, user_id, message, remind_at from Reminders where user_id = $1 order by remind_at asc", userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	reminders := []Reminder{}
+	for rows.Next() {
+		r := Reminder{}
+		if err := rows.Scan(&r.Id, &r.UserId, &r.Message, &r.RemindAt); err != nil {
+			return nil, err
+		}
+		reminders = append(reminders, r)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return reminders, nil
+}
+
+func CountUserReminders(db *sql.DB, userId string) (int, error) {
+	count := int(0)
+	err := db.QueryRow("SELECT count(*) FROM Reminders WHERE user_id = $1", userId).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func InsertReminder(db *sql.DB, reminder Reminder) error {
+	_, err := db.Exec("INSERT INTO Reminders (user_id, message, remind_at) VALUES ($1, $2, $3);", reminder.UserId, reminder.Message, reminder.RemindAt);
+	return err;
+}
+
+func ValidateReminder(r Reminder) error {
+	delay := r.RemindAt.Sub(time.Now())
+
+	if (delay < 1*time.Minute) {
+		return fmt.Errorf("Delay specified is too small")
+	}
+
+	if (len([]rune(r.Message)) > ReminderSize) {
+		return fmt.Errorf("Reminder message must be max %v characters long", ReminderSize)
+	}
+
+	return nil
 }
 
 func AddDurationSafe(a, b time.Duration) (time.Duration, bool) {

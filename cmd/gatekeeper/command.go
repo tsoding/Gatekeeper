@@ -24,10 +24,10 @@ var (
 	CommandDef = "([a-zA-Z0-9\\-_]+)( +(.*))?"
 	CommandRegexp = regexp.MustCompile("^ *("+CommandPrefix+") *"+CommandDef+"$")
 	CommandNoPrefixRegexp = regexp.MustCompile("^ *"+CommandDef+"$")
-	ReminderDurationRegexpStr = `(\d+)(s|m|h|d|y)`
-	ReminderArgsRegexpStr = `^((\d+(s|m|h|d|y))+) +(.+)$`
-	ReminderDurationRegexp = regexp.MustCompile(ReminderDurationRegexpStr)
-	ReminderArgsRegexp = regexp.MustCompile(ReminderArgsRegexpStr)
+	ReminderDurationDef = `(\d+)(s|m|h|d|y)`
+	ReminderArgsDef = `^((`+ReminderDurationDef+`)+) +(.+)$`
+	ReminderDurationRegexp = regexp.MustCompile(ReminderDurationDef)
+	ReminderArgsRegexp = regexp.MustCompile(ReminderArgsDef)
 	Commit        = func() string {
 		if info, ok := debug.ReadBuildInfo(); ok {
 			for _, setting := range info.Settings {
@@ -771,43 +771,100 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		}
 		// TODO: report "added" instead of "updated" when the command didn't exist but was newly created
 		env.SendMessage(fmt.Sprintf("%s command %s is updated", env.AtAuthor(), name))
-	case "addreminder":
+	case "remind":
+		discordEnv := env.AsDiscord()
+		if discordEnv == nil {
+			env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
+			return
+		}
+
 		args := ReminderArgsRegexp.FindStringSubmatch(command.Args)
 		if (args == nil) {
-			env.SendMessage(env.AtAuthor() + " Coudn't parse the reminder arguments, expected `" + ReminderArgsRegexpStr + "`")
+			env.SendMessage(env.AtAuthor() + " Coudn't parse the reminder arguments, expected `" + ReminderArgsDef + "`")
 			return
 		}
 
 		durationStr := args[1]
-		message := args[4]
+		message := args[5]
 
-		delay := time.Duration(0)
-		for _, match := range ReminderDurationRegexp.FindAllStringSubmatch(durationStr, -1) {
-			ammount, err := strconv.ParseInt(match[1], 10, 64)
-			if err != nil {
-				log.Println("Reminder duration parsing: ", err)
-				env.SendMessage(env.AtAuthor() + " Delay ammount overflows." + "\n")
-				return
-			}
-			unit := match[2]
-
-			d, ok := MulDurationSafe(ammount, UnitDurations[unit])
-			if !ok {
-				env.SendMessage(env.AtAuthor() + "Duration specified caused an overflow.")
-				return
-			}
-
-			delay, ok = AddDurationSafe(delay, d)
-			if !ok {
-				env.SendMessage(env.AtAuthor() + "Duration specified caused an overflow.")
-				return
-			}
+		delay, err := ParseDurationStr(durationStr)
+		if err != nil {
+			env.SendMessage(env.AtAuthor() + " Delay ammount overflows." + "\n")
+			return
 		}
 
-		SetReminder(env, Reminder{
-			Delay:   delay,
-			Message: message,
+		err = SetReminder(db, Reminder{
+			UserId:   env.AuthorUserId(),
+			Message:  message,
+			RemindAt: time.Now().Add(delay),
 		})
+		if err != nil {
+			env.SendMessage(env.AtAuthor() + " " + err.Error())
+			return
+		}
+
+		env.SendMessage(env.AtAuthor() + " Reminder has been successfully set to fire in " + DurationToString(delay) + ".")
+	case "reminders":
+		discordEnv := env.AsDiscord()
+		if discordEnv == nil {
+			env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
+			return
+		}
+
+		reminders, err := QueryUserReminders(env.AuthorUserId(), db)
+		if err != nil {
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+			log.Printf("Error while querying user reminders: %s\n", err.Error());
+			return
+		}
+
+		if len(reminders) == 0 {
+			env.SendMessage(env.AtAuthor() + " You have no reminders")
+			return
+		}
+
+		sb := strings.Builder{}
+		for i, r := range reminders {
+			remaining := DurationToString(r.RemindAt.Sub(time.Now()))
+			sb.WriteString(fmt.Sprintf("%d. In %s: %s\n", i, remaining, r.Message))
+		}
+
+		env.SendMessage(env.AtAuthor() + " Your reminders:\n" + sb.String())
+	case "delreminder":
+		discordEnv := env.AsDiscord()
+		if discordEnv == nil {
+			env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
+			return
+		}
+
+		i, err := strconv.Atoi(command.Args)
+		if err != nil || i < 0 {
+			env.SendMessage(env.AtAuthor() + " Command needs a valid positive number index")
+			return
+		}
+
+		reminders, err := QueryUserReminders(env.AuthorUserId(), db)
+		if err != nil {
+			env.SendMessage(env.AtAuthor() + " Something went wrong. Please ask " + env.AtAdmin() + " to check the logs")
+			log.Printf("Error while querying user reminders: %s\n", err.Error());
+			return
+		}
+
+		if len(reminders) == 0 {
+			env.SendMessage(env.AtAuthor() + " You have no reminders")
+			return
+		}
+
+		if len(reminders) <= i {
+			env.SendMessage(env.AtAuthor() + fmt.Sprintf(" Index '%v' is out of bounds", i))
+			return
+		}
+
+		err = DelReminder(db, reminders[i].Id)
+		if err != nil {
+			env.SendMessage(env.AtAuthor() + " " + err.Error())
+			return
+		}
 	case "delcmd":
 		if !env.IsAuthorAdmin() {
 			env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
