@@ -221,7 +221,7 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 					},
 					"replace": func(context *EvalContext, args[]Expr) (Expr, error) {
 						arity := 3;
-						strlimit := 4096; // one replacement could potentially create a strlimit*strlimit string inside this block
+						strlimit := 1024; // one replacement could potentially create a strlimit*strlimit string inside this block
 						if len(args) != arity {
 							return Expr{}, fmt.Errorf("replace: Expected %d arguments but got %d", arity, len(args))
 						}
