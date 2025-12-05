@@ -221,6 +221,7 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 					},
 					"replace": func(context *EvalContext, args[]Expr) (Expr, error) {
 						arity := 3;
+						strlimit := 4096; // one replacement could potentially create a strlimit*strlimit string inside this block
 						if len(args) != arity {
 							return Expr{}, fmt.Errorf("replace: Expected %d arguments but got %d", arity, len(args))
 						}
@@ -232,6 +233,9 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 						if regExpr.Type != ExprStr {
 							return Expr{}, fmt.Errorf("replace: Argument 1 is expected to be %s, but got %s", ExprTypeName(ExprStr), ExprTypeName(regExpr.Type))
 						}
+						if len(regExpr.AsStr) > strlimit {
+							return Expr{}, fmt.Errorf("replace: regexp exceeded string size limit of %d bytes",strlimit)
+						}
 
 						srcExpr, err := context.EvalExpr(args[1])
 						if err != nil {
@@ -239,6 +243,9 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 						}
 						if srcExpr.Type != ExprStr {
 							return Expr{}, fmt.Errorf("replace: Argument 2 is expected to be %s, but got %s", ExprTypeName(ExprStr), ExprTypeName(srcExpr.Type))
+						}
+						if len(srcExpr.AsStr) > strlimit {
+							return Expr{}, fmt.Errorf("replace: source exceeded string size limit of %d bytes",strlimit)
 						}
 
 						replExpr, err := context.EvalExpr(args[2])
@@ -248,13 +255,21 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 						if replExpr.Type != ExprStr {
 							return Expr{}, fmt.Errorf("replace: Argument 3 is expected to be %s, but got %s", ExprTypeName(ExprStr), ExprTypeName(replExpr.Type))
 						}
+						if len(replExpr.AsStr) > strlimit {
+							return Expr{}, fmt.Errorf("replace: replacement exceeded string size limit of %d bytes",strlimit)
+						}
 
 						reg, err := regexp.Compile(regExpr.AsStr);
 						if err != nil {
 							return Expr{}, fmt.Errorf("replace: Could not compile regexp `%s`: %w", regExpr.AsStr, err)
 						}
 
-						return NewExprStr(string(reg.ReplaceAll([]byte(srcExpr.AsStr), []byte(replExpr.AsStr)))), nil
+						out := string(reg.ReplaceAll([]byte(srcExpr.AsStr), []byte(replExpr.AsStr)))
+						if len(out) > strlimit {
+							out = out[:strlimit]
+						}
+
+						return NewExprStr(out), nil
 					},
 					"year": func(context *EvalContext, args []Expr) (Expr, error) {
 						if len(args) > 0 {
