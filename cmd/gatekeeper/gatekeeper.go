@@ -29,6 +29,8 @@ func main() {
 		defer dg.Close();
 	}
 
+	PollOverdueReminders(db, dg)
+
 	// MPV //////////////////////////////
 	mpvMsgs, ok := startMpvControl();
 	if !ok {
