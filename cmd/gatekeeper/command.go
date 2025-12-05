@@ -792,14 +792,13 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		env.SendMessage(fmt.Sprintf("%s deleted %s", env.AtAuthor(), name))
 		return
 	case "eval":
-		if env.AsDiscord() == nil {
-			env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
-			return
+		if !env.IsAuthorAdmin() {
+			if env.AsDiscord() == nil {
+				env.SendMessage(env.AtAuthor() + " This command only works in Discord, sorry")
+				return
+			}
 		}
-		// if !env.IsAuthorAdmin() {
-		// 	env.SendMessage(env.AtAuthor() + " only for " + env.AtAdmin())
-		// 	return
-		// }
+
 		exprs, err := ParseAllExprs(command.Args)
 		if err != nil {
 			env.SendMessage(fmt.Sprintf("%s could not parse expression `%s`: %s", env.AtAuthor(), command.Args, err))
