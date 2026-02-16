@@ -855,6 +855,17 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 				InnerEnv: env,
 			})
 		}
+	case "brok":
+		yesP, noP, err := internal.GrokQuery(db, command.Args)
+		if err != nil {
+			env.SendMessage(env.AtAuthor() + " grok shat his pants")
+			log.Println("Error while checking the weather for:", err)
+		}
+		if yesP > noP {
+			env.SendMessage(env.AtAuthor() + " Yes")
+		} else {
+			env.SendMessage(env.AtAuthor() + " No")
+		}
 	case "weather":
 		place := command.Args
 
