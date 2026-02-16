@@ -861,11 +861,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 			env.SendMessage(env.AtAuthor() + " grok shat his pants")
 			log.Println("Error while checking the weather for:", err)
 		}
-		if yesP > noP {
-			env.SendMessage(env.AtAuthor() + " Yes")
-		} else {
-			env.SendMessage(env.AtAuthor() + " No")
-		}
+		env.SendMessage(env.AtAuthor() + fmt.Sprintf(" Yes: %f, No: %f)", yesP, noP))
 	case "weather":
 		place := command.Args
 
