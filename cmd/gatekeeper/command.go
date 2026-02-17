@@ -514,6 +514,16 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 	}
 }
 
+const (
+	BrokEngagementThreshold = 15.0
+)
+
+var (
+	BrokLastPrompt string = ""
+	BrokLastYes bool = false
+	BrokLastTimestamp time.Time
+)
+
 func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, context EvalContext) {
 	switch command.Name {
 	case "bottomspammers":
@@ -855,6 +865,48 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 				InnerEnv: env,
 			})
 		}
+	case "brok":
+		prompt := command.Args
+		yesP, noP, err := internal.GrokQuery(db, command.Args)
+		if err != nil {
+			env.SendMessage(env.AtAuthor() + " grok shat his pants")
+			log.Println("Error while checking the weather for:", err)
+		}
+
+		yesPP := math.Pow(math.E, yesP)
+		noPP  := math.Pow(math.E, noP)
+		pp    := yesPP / (yesPP + noPP)
+		yes   := rand.Float64() < pp
+		timestamp := time.Now()
+
+		log.Printf("BROK QUERY: prompt=%v, yesPP=%v, noPP=%v, outcomeYes=%v", internal.GrokTokenizeMessage(prompt), yesPP, noPP, yes)
+
+		if env.AsDiscord() != nil {
+			if len(BrokLastPrompt) != 0 {
+				if timestamp.Sub(BrokLastTimestamp).Seconds() < BrokEngagementThreshold {
+					// TODO: we should probably make sure that the consequent engaging broks are within the same channel/platform
+					log.Printf("BROK REINFORCE: prompt=%v, outcomeYes=%v", internal.GrokTokenizeMessage(BrokLastPrompt), BrokLastYes)
+					err := internal.GrokReinforce(db, BrokLastPrompt, BrokLastYes)
+					if err != nil {
+						env.SendMessage(env.AtAuthor() + " Error during broking. " + env.AtAdmin() + " please check the logs");
+						log.Printf("BROK ERROR: %v\n", err)
+						return
+					}
+				} else {
+					log.Printf("BROK NOT ENGAGING: prompt=%v, outcomeYes=%v", internal.GrokTokenizeMessage(BrokLastPrompt), BrokLastYes)
+				}
+			}
+		}
+
+		if yes {
+			env.SendMessage(env.AtAuthor() + " Yes")
+		} else {
+			env.SendMessage(env.AtAuthor() + " No")
+		}
+
+		BrokLastPrompt    = prompt
+		BrokLastYes       = yes
+		BrokLastTimestamp = timestamp
 	case "weather":
 		place := command.Args
 
