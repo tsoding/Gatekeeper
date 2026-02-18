@@ -133,8 +133,8 @@ setup-gatekeeper() {
 
         # TODO(rexim): constant interrupt questions like this do not allow to just start inflitrating and walk away
         # We should probably introduce some sort of preconfigure step were you can set your preferences
-        read -p 'Clone Gatekeeper source code from the SSH url? [y/n] ' yn
         while true; do
+            read -p 'Clone Gatekeeper source code from the SSH url? [y/n] ' yn
             case $yn in
                 [Yy]*)
                     git clone "git@github.com:tsoding/gatekeeper.git"
