@@ -16,7 +16,7 @@ import (
 const BotShrineChannelId = "555128235869077506"
 const ReminderSize = 256
 const MaxRemindersCount = 5
-const MinimumReminderDelay = 1 * time.Minute
+const MinimumReminderDelay = 1 * time.Second
 const ReminderPoolInterval = MinimumReminderDelay
 
 type ReminderDelay struct {
