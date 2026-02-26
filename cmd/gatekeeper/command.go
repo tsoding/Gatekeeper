@@ -479,9 +479,10 @@ func EvalContextFromCommandEnvironment(env CommandEnvironment, command Command, 
 							if exists {
 								return Expr{}, fmt.Errorf("Redefinition of the let-binding `%s`", bind.AsFuncall.Name)
 							}
-							scope.Funcs[bind.AsFuncall.Name] = func(context *EvalContext, args []Expr) (Expr, error) {
+							name := bind.AsFuncall.Name
+							scope.Funcs[name] = func(context *EvalContext, args []Expr) (Expr, error) {
 								if len(args) > 0 {
-									return Expr{}, fmt.Errorf("Let binding `%s` accepts 0 arguments, but you provided", bind.AsFuncall.Name, len(args))
+									return Expr{}, fmt.Errorf("Let binding `%s` accepts 0 arguments, but you provided %v", name, len(args))
 								}
 								return value, nil
 							};
