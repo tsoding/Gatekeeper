@@ -983,7 +983,7 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 		yesP, noP, err := internal.GrokQuery(db, command.Args)
 		if err != nil {
 			env.SendMessage(env.AtAuthor() + " grok shat his pants")
-			log.Println("Error while checking the weather for:", err)
+			log.Println("Error while querying grok: ", err)
 		}
 
 		yesPP := math.Pow(math.E, yesP)
