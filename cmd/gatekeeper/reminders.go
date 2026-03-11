@@ -24,6 +24,7 @@ type ReminderDelay struct {
 	Minutes int
 	Hours   int
 	Days    int
+	Weeks   int
 	Months  int
 	Years   int
 }
@@ -32,7 +33,7 @@ func AddDelayToTimestamp(t1 time.Time, delay ReminderDelay) (time.Time, error) {
 	t2 := t1.Add(time.Duration(delay.Seconds) * time.Second)
 	t2 = t2.Add(time.Duration(delay.Minutes) * time.Minute)
 	t2 = t2.Add(time.Duration(delay.Hours) * time.Hour)
-	t2 = t2.AddDate(delay.Years, delay.Months, delay.Days)
+	t2 = t2.AddDate(delay.Years, delay.Months, delay.Days + delay.Weeks*7)
 
 	if t2.Before(t1) {
 		return time.Time{}, errors.New("Time overflow")
@@ -46,6 +47,7 @@ const (
 	MinutesCode = "m"
 	HoursCode = "h"
 	DaysCode = "d"
+	WeeksCode = "w"
 	MonthsCode = "M"
 	YearsCode = "y"
 )
@@ -170,6 +172,8 @@ func ParseReminderDelayStr(durationStr string) (ReminderDelay, error) {
 			delay.Hours = int(ammount)
 		case DaysCode:
 			delay.Days = int(ammount)
+		case WeeksCode:
+			delay.Weeks = int(ammount)
 		case MonthsCode:
 			delay.Months = int(ammount)
 		case YearsCode:

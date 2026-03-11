@@ -24,7 +24,7 @@ var (
 	CommandDef = "([a-zA-Z0-9\\-_]+)( +(.*))?"
 	CommandRegexp = regexp.MustCompile("^ *("+CommandPrefix+") *"+CommandDef+"$")
 	CommandNoPrefixRegexp = regexp.MustCompile("^ *"+CommandDef+"$")
-	ReminderDurationDef = `(\d+)(s|m|h|d|M|y)`
+	ReminderDurationDef = `(\d+)(s|m|h|d|w|M|y)`
 	ReminderArgsDef = `^((`+ReminderDurationDef+`)+) +(.+)$`
 	ReminderDurationRegexp = regexp.MustCompile(ReminderDurationDef)
 	ReminderArgsRegexp = regexp.MustCompile(ReminderArgsDef)
