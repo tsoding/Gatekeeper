@@ -214,7 +214,11 @@ func startTwitch(db *sql.DB, mpv chan MpvSong) (*TwitchConn, bool) {
 						Channel: TwitchIrcChannel,
 					}
 					LogMpvSong(db, song)
-					tw.SendMessage(fmt.Sprintf("🎶 🎵 Currently Playing: \"%s\" by %s 🎵 🎶", song.title, song.artist));
+					if len(song.link) > 0 {
+						tw.SendMessage(fmt.Sprintf("🎶 🎵 Currently Playing: \"%s\" by %s %s 🎵 🎶", song.title, song.artist, song.link));
+					} else {
+						tw.SendMessage(fmt.Sprintf("🎶 🎵 Currently Playing: \"%s\" by %s 🎵 🎶", song.title, song.artist));
+					}
 				case msg := <-twitchConn.Incoming:
 					switch msg.Name {
 					// TODO: Handle RECONNECT command

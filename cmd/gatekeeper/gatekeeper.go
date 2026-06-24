@@ -32,7 +32,7 @@ func main() {
 	PollOverdueReminders(db, dg)
 
 	// MPV //////////////////////////////
-	mpvMsgs, ok := startMpvControl();
+	mpvMsgs, ok := startHttpControl();
 	if !ok {
 		log.Println("Could not start the MPV Control");
 	}

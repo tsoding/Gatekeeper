@@ -9,11 +9,13 @@ import (
 	"encoding/json"
 	"strings"
 	"database/sql"
+	"net/http"
 )
 
 type MpvSong struct {
 	title string
 	artist string
+	link string
 }
 
 func LogMpvSong(db *sql.DB, song MpvSong) {
@@ -87,7 +89,41 @@ func startMpvControlThread(conn net.Conn, mpvIpcAddress string, msgs chan MpvSon
 	}
 }
 
-func startMpvControl() (chan MpvSong, bool) {
+func startHttpControl() (chan MpvSong, bool) {
+	msgs := make(chan MpvSong);
+
+	http.HandleFunc("/song", func(w http.ResponseWriter, r *http.Request) {
+		err := r.ParseForm()
+		if err != nil {
+			log.Printf("ERROR: could not parse POST form: %v\n", err)
+			return
+		}
+
+		values := r.PostForm;
+		artist := values.Get("artist");
+		title  := values.Get("title");
+		link   := values.Get("link");
+		msgs <- MpvSong{
+			title: title,
+			artist: artist,
+			link: link,
+		}
+	})
+
+	go func() {
+		addr := "127.0.0.1:6969";
+		err := http.ListenAndServe(addr, nil);
+		if err != nil {
+			log.Printf("ERROR: could not start up the server: %v\n", err)
+			return
+		}
+		log.Printf("Listenting to http://%v\n", addr);
+	}();
+
+	return msgs, true
+}
+
+func startIpcControl() (chan MpvSong, bool) {
 	msgs := make(chan MpvSong);
 
 	mpvIpcAddress := os.Getenv("GATEKEEPER_MPV_IPC_ADDRESS");
