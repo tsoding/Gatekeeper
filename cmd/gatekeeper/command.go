@@ -683,7 +683,11 @@ func EvalBuiltinCommand(db *sql.DB, command Command, env CommandEnvironment, con
 	case "song":
 		song := LastSongPlayed(db)
 		if song != nil {
-			env.SendMessage(env.AtAuthor() + " " + fmt.Sprintf("🎶 🎵 Last Song: \"%s\" by %s 🎵 🎶", song.title, song.artist))
+			if len(song.link) > 0 {
+				env.SendMessage(env.AtAuthor() + " " + fmt.Sprintf("🎶 🎵 Last Song: \"%s\" by %s %s 🎵 🎶", song.title, song.artist, song.link));
+			} else {
+				env.SendMessage(env.AtAuthor() + " " + fmt.Sprintf("🎶 🎵 Last Song: \"%s\" by %s 🎵 🎶", song.title, song.artist))
+			}
 		} else {
 			env.SendMessage(env.AtAuthor() + " No song has been played so far")
 		}

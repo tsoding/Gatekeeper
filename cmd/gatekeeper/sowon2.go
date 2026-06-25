@@ -14,7 +14,7 @@ type Song struct {
 }
 
 func LogSong(db *sql.DB, song Song) {
-	_, err := db.Exec("INSERT INTO Song_Log (artist, title) VALUES ($1, $2)", song.artist, song.title);
+	_, err := db.Exec("INSERT INTO Song_Log (artist, title, link) VALUES ($1, $2, $3)", song.artist, song.title, song.link);
 	if err != nil {
 		log.Println("ERROR: LogSong: could not insert element %#v: %s", song, err);
 		return
@@ -22,10 +22,11 @@ func LogSong(db *sql.DB, song Song) {
 }
 
 func LastSongPlayed(db *sql.DB) *Song {
-	row := db.QueryRow("select artist, title from Song_Log order by startedAt desc limit 1")
+	row := db.QueryRow("select artist, title, link from Song_Log order by startedAt desc limit 1")
 	var artist string
 	var title string
-	err := row.Scan(&artist, &title)
+	var link string
+	err := row.Scan(&artist, &title, &link)
 	if err == sql.ErrNoRows {
 		return nil
 	}
@@ -36,6 +37,7 @@ func LastSongPlayed(db *sql.DB) *Song {
 	return &Song{
 		artist: artist,
 		title: title,
+		link: link,
 	}
 }
 
