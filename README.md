@@ -60,7 +60,7 @@ Only plain HTTP without any authentication is supported. Because of that it is h
 
 ### Quick Start via SSH tunnel
 
-Make sure `GATEKEEPER_SOWON2_IPC_ADDRESS` is set to `127.0.0.1:8080` on your `remotemachine` host.
+Make sure `GATEKEEPER_SOWON2_HTTP_ADDRESS` is set to `127.0.0.1:8080` on your `remotemachine` host.
 
 Establish the SSH tunnel:
 
