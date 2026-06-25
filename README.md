@@ -34,25 +34,33 @@ $ ./gaslighter
 | `GATEKEEPER_PGSQL_CONNECTION` | PostgreSQL connection URL [https://www.postgresql.org/docs/current/libpq-connect.html#id-1.7.3.8.3.6](https://www.postgresql.org/docs/current/libpq-connect.html#id-1.7.3.8.3.6) |
 | `GATEKEEPER_TWITCH_IRC_NICK` | Twitch Login |
 | `GATEKEEPER_TWITCH_IRC_PASS` | Twitch Password [https://twitchapps.com/tmi/](https://twitchapps.com/tmi/) |
-| `GATEKEEPER_MPV_IPC_ADDRESS` | Address for the MPV IPC control to listen to. Format is `<ip>:<port>` |
+| `GATEKEEPER_SOWON2_HTTP_ADDRESS` | Address for the Sowon2 HTTP control to listen to. Format is `<ip>:<port>`. |
 
-## MPV Control
+## Sowon2 Control
 
-When `GATEKEEPER_MPV_IPC_ADDRESS` is provided bot starts listening for [MPV IPC](https://mpv.io/manual/stable/#json-ipc) on that address and port. It is intended to be used in conjunction with [mpv-client](./cmd/mpv-client) to make the bot report currently playing songs.
+When `GATEKEEPER_SOWON2_HTTP_ADDRESS` is provided the bot starts up REST API on that address and port over plain HTTP (no HTTPS). It is intended to be used in conjunction with Sowon2 to make the bot report currently playing songs. Sowon2 is a second iteration of the [Sowon](https://github.com/tsoding/sowon) timer which also integrate a music player. The source code and the binaries of Sowon2 are not publically available as of right now to avoid additional maintenance burden.
+
+### REST API
+
+#### `POST /song`
+
+Makes the bot send out a notification in the Twitch chat about a currently playing song.
+
+##### [Form Data fields](https://en.wikipedia.org/wiki/Percent-encoding#The_application.2Fx-www-form-urlencoded_type)
+
+| Field name | Description                          |
+|------------|--------------------------------------|
+| `artist`   | The artist of the song (duh)         |
+| `title`    | The title of the song (duh)          |
+| `link`     | The link to the song on the Internet |
 
 ### Security Considerations
 
-The connection and the protocol are insecure and lack any authentication or encryption. Because of that it is highly advised to set the address of `GATEKEEPER_MPV_IPC_ADDRESS` to `127.0.0.1:<port>` and connect the mpv-client through an [SSH tunnel](https://www.ssh.com/academy/ssh/tunneling) if the bot is hosted on a remote machine.
+Only plain HTTP without any authentication is supported. Because of that it is highly advised to set the address of `GATEKEEPER_SOWON2_HTTP_ADDRESS` to `127.0.0.1:<port>` and connect to it via an [SSH tunnel](https://www.ssh.com/academy/ssh/tunneling) if the bot is hosted on a remote machine.
 
 ### Quick Start via SSH tunnel
 
-Make sure `GATEKEEPER_MPV_IPC_ADDRESS` is set to `127.0.0.1:8080` on your `remotemachine` host.
-
-Build the mpv-client:
-
-```console
-$ cc -o mpv-client ./cmd/mpv-client/mpv-client.c
-```
+Make sure `GATEKEEPER_SOWON2_IPC_ADDRESS` is set to `127.0.0.1:8080` on your `remotemachine` host.
 
 Establish the SSH tunnel:
 
@@ -60,8 +68,8 @@ Establish the SSH tunnel:
 $ ssh user@remotemachine -N -L 8080:127.0.0.1:8080
 ```
 
-Play the song with the mpv-client (make sure [mpv](https://mpv.io/) is installed as the mpv-client wraps around it).
+Send out the notification:
 
 ```console
-$ ./mpv-client song.mp3
+$ curl -X POST -d "artist=Rick Astley&title=Never Gonna Give You Up&link=https://www.youtube.com/watch?v=dQw4w9WgXcQ" http://127.0.0.1:8080/song
 ```
