@@ -52,7 +52,7 @@ func (env *TwitchEnvironment) AtAuthor() string {
 		return "@"+env.AuthorHandle
 	}
 	// The author could be empty if the environment was created not by
-	// a command. For instance, MPV message handler
+	// a command. For instance, Sowon2 message handler.
 	return ""
 }
 
@@ -78,7 +78,7 @@ type TwitchConn struct {
 	Quit chan int
 	Incoming chan IrcMsg
 	IncomingQuit chan int
-	Mpv chan MpvSong
+	Sowon2Msgs chan Song
 }
 
 func (conn *TwitchConn) Close() {
@@ -122,12 +122,12 @@ func granum(amount int, singular string, plural string) string {
 	return fmt.Sprintf("%d %s", amount, plural)
 }
 
-func startTwitch(db *sql.DB, mpv chan MpvSong) (*TwitchConn, bool) {
+func startTwitch(db *sql.DB, sowon2Msgs chan Song) (*TwitchConn, bool) {
 	twitchConn := TwitchConn{
 		Quit: make(chan int),
 		Incoming: make(chan IrcMsg),
 		IncomingQuit: make(chan int),
-		Mpv: mpv,
+		Sowon2Msgs: sowon2Msgs,
 	}
 
 	twitchConn.Nick = os.Getenv("GATEKEEPER_TWITCH_IRC_NICK");
@@ -207,14 +207,18 @@ func startTwitch(db *sql.DB, mpv chan MpvSong) (*TwitchConn, bool) {
 				case <-twitchConn.IncomingQuit:
 					twitchConn.State = TwitchConnect
 					continue
-				case song := <-twitchConn.Mpv:
+				case song := <-twitchConn.Sowon2Msgs:
 					tw := TwitchEnvironment{
 						AuthorHandle: "",
 						Conn: twitchConn.Conn,
 						Channel: TwitchIrcChannel,
 					}
-					LogMpvSong(db, song)
-					tw.SendMessage(fmt.Sprintf("🎶 🎵 Currently Playing: \"%s\" by %s 🎵 🎶", song.title, song.artist));
+					LogSong(db, song)
+					if len(song.link) > 0 {
+						tw.SendMessage(fmt.Sprintf("🎶 🎵 Currently Playing: \"%s\" by %s %s 🎵 🎶", song.title, song.artist, song.link));
+					} else {
+						tw.SendMessage(fmt.Sprintf("🎶 🎵 Currently Playing: \"%s\" by %s 🎵 🎶", song.title, song.artist));
+					}
 				case msg := <-twitchConn.Incoming:
 					switch msg.Name {
 					// TODO: Handle RECONNECT command

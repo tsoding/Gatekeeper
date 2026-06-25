@@ -31,14 +31,14 @@ func main() {
 
 	PollOverdueReminders(db, dg)
 
-	// MPV //////////////////////////////
-	mpvMsgs, ok := startMpvControl();
+	// Sowon2 //////////////////////////////
+	sowon2Msgs, ok := startSowon2Control();
 	if !ok {
-		log.Println("Could not start the MPV Control");
+		log.Println("Could not start the Sowon2 Control");
 	}
 
 	// Twitch //////////////////////////////
-	tw, ok := startTwitch(db, mpvMsgs);
+	tw, ok := startTwitch(db, sowon2Msgs);
 	if !ok {
 		log.Println("Could not open Twitch connection");
 	} else {
