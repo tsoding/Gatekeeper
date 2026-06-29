@@ -73,3 +73,9 @@ Send out the notification:
 ```console
 $ curl -X POST -d "artist=Rick Astley&title=Never Gonna Give You Up&link=https://www.youtube.com/watch?v=dQw4w9WgXcQ" http://127.0.0.1:8080/song
 ```
+
+To keep the tunnel stable consider using [autossh](https://www.harding.motd.ca/autossh/):
+
+```console
+$ autossh -M 0 -o "ServerAliveInterval 30" -o "ServerAliveCountMax 3" -N -L 8080:127.0.0.1:8080 user@remotemachine
+```
