@@ -4,7 +4,7 @@
 
 set -e
 
-export PGVER=17.2
+export PGVER=13.2
 export GOVER=1.23.4
 export GATEKEEPER_PREFIX="$HOME/Gatekeeper"
 export PGDATA="$GATEKEEPER_PREFIX/data/db" # NOTE(rexim): Tells PostgreSQL where the database is
