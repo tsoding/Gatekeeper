@@ -176,9 +176,16 @@ db-start() {
     pg_ctl start -l "$GATEKEEPER_PREFIX/data/logs/postgres.log"
 }
 
+GATEKEEPER_COMMANDS+=(db-ssh-tunnel)
+db-ssh-tunnel() {
+    # We assume that the server where you host the bot is called "gatekeeper"
+    # You can configure that in "$HOME/.ssh/config".
+    autossh -M 0 -o "ServerAliveInterval 30" -o "ServerAliveCountMax 3" -N -L 5432:localhost:5432 gatekeeper
+}
+
 GATEKEEPER_COMMANDS+=(db-stop)
 db-stop() {
-    pg_ctl stop
+    pg_ctl stop -m smart
 }
 
 GATEKEEPER_COMMANDS+=(db-status)
@@ -197,6 +204,34 @@ db-logs() {
     tail -f "$GATEKEEPER_PREFIX/data/logs/postgres.log"
 }
 
+GATEKEEPER_COMMANDS+=(db-ls-backup)
+db-ls-backups() {
+    cd "$GATEKEEPER_PREFIX/data/db-backups/"
+    pwd
+    ls -lh
+}
+
+GATEKEEPER_COMMANDS+=(db-backup)
+db-backup() {
+    cd "$GATEKEEPER_PREFIX/data/db-backups/"
+    backup_archive="$(date +%s%N).tgz"
+    pg_basebackup -h localhost -D "db" -U postgres -v -P || return
+    tar fvcz "$backup_archive" "db" || return
+    rm -rv "db" || return
+}
+
+GATEKEEPER_COMMANDS+=(db-restore)
+db-restore() {
+    cd "$GATEKEEPER_PREFIX/data/"
+    backup_archive="db-backups/$1"
+    test ! -e "$backup_archive" && echo "Backup $backup_archive does not exist! Check db-ls-backups for available backups." && return 1
+    test -e "db.save" && echo "$GATEKEEPER_PREFIX/data/db.save already exists! Please remove it before restoring another backup!" && return 1
+    db-stop
+    mv -v "db" "db.save" || return
+    tar fvx "$backup_archive" || return
+    echo "Archive restored! You may now do db-start."
+}
+
 GATEKEEPER_COMMANDS+=(bot-start)
 bot-start() {
     . "$GATEKEEPER_PREFIX/data/secret"
@@ -207,8 +242,7 @@ bot-start() {
 GATEKEEPER_COMMANDS+=(bot-pull)
 bot-pull() {
     cd "$GATEKEEPER_PREFIX/src/gatekeeper/"
-    git fetch --prune origin
-    git merge origin/master
+    git fetch --prune origin && git merge origin/master
 }
 
 GATEKEEPER_COMMANDS+=(secret-edit)
@@ -247,5 +281,4 @@ else
     $@
 fi
 
-# TODO(rexim): subcommand to make/restore backups
 # TODO(rexim): how would you autostart the whole system with this kind of setup?
