@@ -213,6 +213,7 @@ db-ls-backups() {
 
 GATEKEEPER_COMMANDS+=(db-backup)
 db-backup() {
+    mkdir -p "$GATEKEEPER_PREFIX/data/db-backups/" || return
     cd "$GATEKEEPER_PREFIX/data/db-backups/"
     backup_archive="$(date +%s%N).tgz"
     pg_basebackup -h localhost -D "db" -U postgres -v -P || return
