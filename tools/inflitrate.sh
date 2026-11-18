@@ -62,7 +62,7 @@ setup-deps() {
             ;;
         "debian")
             # TODO(rexim): update apt
-            su -c "apt install git pkg-config gcc libicu-dev bison flex libreadline-dev zlib1g-dev"
+            su -c "apt install git pkg-config gcc libicu-dev bison flex libreadline-dev zlib1g-dev build-essential"
             ;;
         *)
             echo "------------------------------------------------------------"
